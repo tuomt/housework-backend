@@ -6,11 +6,7 @@ class ExceptionHandler
 {
     static function handle($exception) {
         http_response_code(500);
-        if (strcmp($exception->getMessage(), "Uncaught Error") == 0) {
-            echo json_encode(array("errormessage" => "Uncaught error in the API."));
-        } else {
-            echo json_encode(array("errormessage" => "Uncaught exception in the API."));
-        }
+        echo json_encode(array("errormessage" => "Uncaught exception in the API."));
         error_log($exception->getMessage());
     }
 
