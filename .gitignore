@@ -1,0 +1,4 @@
+**/secrets
+/vendor/*
+/public/views/*
+/public/.idea/*
