@@ -41,7 +41,7 @@ class UserController
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         // Bind id
-        $statement->bindParam(':id', $id);
+        $statement->bindParam(':id', $id, PDO::PARAM_INT);
         // Execute the statement and fetch user information
         $statement->execute();
         $user = $statement->fetch(PDO::FETCH_ASSOC);
@@ -166,7 +166,7 @@ class UserController
             $statement->bindValue($valueIndex, $value, $valueType);
             $valueIndex++;
         }
-        $statement->bindValue($valueIndex, $id);
+        $statement->bindValue($valueIndex, $id, PDO::PARAM_INT);
 
         // Execute the statement
         $statement->execute();
@@ -195,7 +195,7 @@ class UserController
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         // Bind id
-        $statement->bindValue(':id', $id);
+        $statement->bindValue(':id', $id, PDO::PARAM_INT);
         // Execute the statement and send a response
         // execute() returns true if there was nothing to delete
         $statement->execute();
