@@ -12,7 +12,7 @@ class TokenManager
     const RT_EXPIRATION = 15778463;
 
     static function createAccessToken($userid) {
-        $secrets = json_decode(file_get_contents(__DIR__ . '/../jwt_secrets.json'));
+        $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
         return self::encodeToken($userid, self::AT_EXPIRATION, $privateKey);
     }
@@ -65,7 +65,7 @@ class TokenManager
 
         try {
             $token = JWT::decode($token, $key, array(self::ALGORITHM));
-            $useridInToken = $token->data->id;
+            $useridInToken = $token->data->userid;
         } catch (ExpiredException $e) {
             $outErrorMsg = "The provided JWT has expired.";
             return false;
