@@ -10,11 +10,6 @@ class TokenManager
     const ALGORITHM = 'HS256';
     const AT_EXPIRATION = 900;
     const RT_EXPIRATION = 15778463;
-    // All resources
-    const RESOURCES = array(
-        'name' => JsonValidator::T_STRING,
-        'password' => JsonValidator::T_STRING
-    );
 
     static function createAccessToken($userid) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../jwt_secrets.json'));
@@ -40,37 +35,37 @@ class TokenManager
             "nbf" => $nbf,
             "exp" => $exp,
             "data" => array(
-                "id" => $userid
+                "userid" => $userid
             )
         );
 
         return JWT::encode($token, $key, self::ALGORITHM);
     }
 
-    static function verifyAccessToken($id, &$outErrorMsg = null) {
+    static function verifyAccessToken($userid, &$outErrorMsg = null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
-        return self::verifyToken($id, $privateKey, $outErrorMsg);
+        return self::verifyToken($userid, $privateKey, $outErrorMsg);
     }
 
-    static function verifyRefreshToken($id, &$outErrorMsg = null) {
+    static function verifyRefreshToken($userid, &$outErrorMsg = null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
-        return self::verifyToken($id, $privateKey, $outErrorMsg);
+        return self::verifyToken($userid, $privateKey, $outErrorMsg);
     }
 
-    private static function verifyToken($id, $key, &$outErrorMsg = null) {
+    private static function verifyToken($userid, $key, &$outErrorMsg = null) {
         $token = self::getTokenFromHeaders();
         if ($token === false) {
             $outErrorMsg = "Bearer token was not provided in the authorization header or the format was invalid.";
             return false;
         }
 
-        $idInToken = null;
+        $useridInToken = null;
 
         try {
             $token = JWT::decode($token, $key, array(self::ALGORITHM));
-            $idInToken = $token->data->id;
+            $useridInToken = $token->data->id;
         } catch (ExpiredException $e) {
             $outErrorMsg = "The provided JWT has expired.";
             return false;
@@ -89,7 +84,7 @@ class TokenManager
             return false;
         }
 
-        if ($id == $idInToken) {
+        if ($userid == $useridInToken) {
             return true;
         } else {
             $outErrorMsg = "You don't have permission to access the requested resource.";
