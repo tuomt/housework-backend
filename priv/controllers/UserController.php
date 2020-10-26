@@ -28,8 +28,94 @@ class UserController
         'email' => JsonValidator::T_STRING_NULLABLE
     );
 
+    // These resources are used for authentication
+    const AUTHENTICATION_RESOURCES = array(
+        'name' => JsonValidator::T_STRING,
+        'password' => JsonValidator::T_STRING_NULLABLE,
+    );
+
+    static function authenticateUser()
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        // Check if data is valid
+        $invalidDataMsg = "";
+        $isDataValid = JsonValidator::validateData($data, self::AUTHENTICATION_RESOURCES, true, $invalidDataMsg);
+        if (!$isDataValid) {
+            http_response_code(400);
+            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            return false;
+        }
+
+        // Check if user exists and the password is correct
+        // TODO: user name must be unique, create alias column in users table
+        $query = "SELECT id, password FROM " . self::TABLE_NAME . " WHERE name = :name";
+
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        // Bind name
+        $statement->bindParam(':name', $data["name"]);
+        // Execute the statement and fetch user information
+        $statement->execute();
+        $user = $statement->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            // Verify password
+            if (password_verify($data["password"], $user["password"]))
+            {
+                // Create an access token and a refresh token
+                $accessToken = TokenManager::createAccessToken($user["id"]);
+                $refreshToken = TokenManager::createRefreshToken($user["id"]);
+                // Send the tokens to the client
+                http_response_code(200);
+                echo json_encode(array(
+                    "accesstoken" => $accessToken,
+                    "refreshtoken" => $refreshToken
+                    ));
+                return true;
+            } else {
+                http_response_code(401);
+                echo json_encode(array("errormessage" => "Wrong password."));
+                return false;
+            }
+        } else {
+            http_response_code(401);
+            echo json_encode(array("errormessage" => "User with this name does not exist."));
+            return false;
+        }
+    }
+
+    static function getNewAccessToken($id) {
+        header('Content-Type: application/json');
+        $tokenVerificationError = "";
+        $token = TokenManager::getDecodedRefreshToken($tokenVerificationError);
+        if ($token === false || $token->data->userid != $id) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
+
+        // Create an access token
+        $accessToken = TokenManager::createAccessToken($id);
+        // Send the token to the client
+        http_response_code(200);
+        echo json_encode(array("accesstoken" => $accessToken));
+        return true;
+    }
+
     static function getUser($id) {
         header('Content-Type: application/json');
+
+        $tokenVerificationError = "";
+        $token = TokenManager::getDecodedAccessToken($tokenVerificationError);
+        if (!$token || $token->data->userid != $id) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
 
         // Build the query
         $query = "SELECT  id, groupid, name, master, email" .
@@ -108,8 +194,16 @@ class UserController
 
     static function modifyUserPartially($id) {
         header('Content-Type: application/json');
-        $data = json_decode(file_get_contents("php://input"), true);
 
+        $tokenVerificationError = "";
+        $token = TokenManager::getDecodedAccessToken($tokenVerificationError);
+        if (!$token || $token->data->userid != $id) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
+
+        $data = json_decode(file_get_contents("php://input"), true);
         // Check if data is valid
         $invalidDataMsg = "";
         $isDataValid = JsonValidator::validateData($data, self::PATCHABLE_RESOURCES, false, $invalidDataMsg);
@@ -181,11 +275,19 @@ class UserController
             http_response_code(500);
             echo json_encode(array("errormessage" => "Failed to update user."));
             return false;
-        };
+        }
     }
 
     static function deleteUser($id) {
         header('Content-Type: application/json');
+
+        $tokenVerificationError = "";
+        $token = TokenManager::getDecodedAccessToken($tokenVerificationError);
+        if (!$token || $token->data->userid != $id) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
 
         // Build the query
         $query = "DELETE FROM " . self::TABLE_NAME . " WHERE id = :id";
