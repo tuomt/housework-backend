@@ -42,54 +42,41 @@ class TokenManager
         return JWT::encode($token, $key, self::ALGORITHM);
     }
 
-    static function verifyAccessToken($userid, &$outErrorMsg = null) {
+    static function getDecodedAccessToken(&$outErrorMsg = null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
-        return self::verifyToken($userid, $privateKey, $outErrorMsg);
+        return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
     }
 
-    static function verifyRefreshToken($userid, &$outErrorMsg = null) {
+    static function getDecodedRefreshToken(&$outErrorMsg = null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
-        return self::verifyToken($userid, $privateKey, $outErrorMsg);
+        return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
     }
 
-    private static function verifyToken($userid, $key, &$outErrorMsg = null) {
+    private static function decodeTokenFromHeader($key, &$outErrorMsg = null) {
         $token = self::getTokenFromHeaders();
         if ($token === false) {
             $outErrorMsg = "Bearer token was not provided in the authorization header or the format was invalid.";
             return false;
         }
 
-        $useridInToken = null;
-
         try {
             $token = JWT::decode($token, $key, array(self::ALGORITHM));
-            $useridInToken = $token->data->userid;
+            return $token;
         } catch (ExpiredException $e) {
             $outErrorMsg = "The provided JWT has expired.";
-            return false;
         } catch (BeforeValidException $e) {
             $outErrorMsg = "The provided JWT is not valid yet.";
-            return false;
         } catch (SignatureInvalidException $e) {
             $outErrorMsg = "Could not verify the signature of the provided JWT.";
-            return false;
         } catch (UnexpectedValueException $e) {
             $outErrorMsg = "The provided JWT was invalid.";
-            return false;
         } catch (DomainException $e) {
             $msg = $e->getMessage();
             $outErrorMsg = "The provided JWT was invalid: $msg.";
-            return false;
         }
-
-        if ($userid == $useridInToken) {
-            return true;
-        } else {
-            $outErrorMsg = "You don't have permission to access the requested resource.";
-            return false;
-        }
+        return false;
     }
 
     private static function getTokenFromHeaders() {
