@@ -183,7 +183,13 @@ class UserController
         // Send a response depending on the outcome of the query
         if ($statement->execute()) {
             http_response_code(201);
-            echo json_encode(array("message" => "User was created successfully."));
+            echo json_encode(array(
+                "id" => (int)$conn->lastInsertId(),
+                "groupid" => $data["groupid"],
+                "name" => $data["name"],
+                "master" => $data["master"],
+                "email" => $data["email"]
+            ));
             return true;
         } else {
             http_response_code(500);
