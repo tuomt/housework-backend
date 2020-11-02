@@ -11,25 +11,7 @@ require __DIR__ . '/../priv/config/TokenManager.php';
 require __DIR__ . '/../priv/controllers/UserController.php';
 require __DIR__ . '/../priv/controllers/GroupController.php';
 
-
 $router = new AltoRouter();
-// map homepage
-$router->map( 'GET', '/', function() {
-    require __DIR__ . '/views/home.html';
-    exit;
-});
-
-// testing page
-$router->map('GET', '/test', function() {
-    require __DIR__ . "/views/test.php";
-    exit;
-});
-
-// phpinfo page
-$router->map('GET', '/info', function() {
-    require __DIR__ . "/views/info.php";
-    exit;
-});
 
 // Requests related to users
 $router->map('GET', '/api/users/[i:id]', 'UserController::getUser');
@@ -58,10 +40,5 @@ if ($match === false) {
     echo json_encode(array("errormessage" => "Page not found or the HTTP-method is not supported for this page."));
 } else {
     $stmt = call_user_func_array($match['target'], $match['params']);
-    if ($stmt) {
-        echo PHP_EOL, "Function returned true.";
-    } else {
-        echo PHP_EOL, "Function returned false.";
-    }
 }
 
