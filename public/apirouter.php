@@ -10,6 +10,7 @@ require __DIR__ . '/../priv/config/JsonValidator.php';
 require __DIR__ . '/../priv/config/TokenManager.php';
 require __DIR__ . '/../priv/controllers/UserController.php';
 require __DIR__ . '/../priv/controllers/GroupController.php';
+require __DIR__ . '/../priv/controllers/GroupMemberController.php';
 
 $router = new AltoRouter();
 

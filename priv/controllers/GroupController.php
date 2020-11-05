@@ -18,6 +18,13 @@ class GroupController
 
     static function getGroup($id) {
         header('Content-Type: application/json');
+        $authErrorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, false, $authErrorMsg);
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+            return false;
+        }
 
         // Build the query
         $query = "SELECT id, name FROM " . self::TABLE_NAME .
@@ -79,6 +86,7 @@ class GroupController
 
         // Send a response depending on the outcome of the query
         if ($statement->execute()) {
+            // TODO: change this to respond with details of the created group
             http_response_code(201);
             echo json_encode(array("message" => "Group was created successfully."));
             return true;
@@ -92,6 +100,17 @@ class GroupController
 
     static function modifyGroup($id) {
         header('Content-Type: application/json');
+
+        // Authorize user
+        $authErrorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true, $authErrorMsg);
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+            return false;
+        }
+
+        // Get the data sent by the client
         $data = json_decode(file_get_contents("php://input"), true);
 
         // Check if data is valid
@@ -140,11 +159,22 @@ class GroupController
             http_response_code(500);
             echo json_encode(array("errormessage" => "Failed to update group."));
             return false;
-        };
+        }
     }
 
     static function modifyGroupPartially($id) {
         header('Content-Type: application/json');
+
+        // Authorize user
+        $authErrorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true, $authErrorMsg);
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+            return false;
+        }
+
+        // Get the data sent by the client
         $data = json_decode(file_get_contents("php://input"), true);
 
         // Check if data is valid
@@ -218,11 +248,20 @@ class GroupController
             http_response_code(500);
             echo json_encode(array("errormessage" => "Failed to update group."));
             return false;
-        };
+        }
     }
 
     static function deleteGroup($id) {
         header('Content-Type: application/json');
+
+        // Authorize user
+        $authErrorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true, $authErrorMsg);
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+            return false;
+        }
 
         // Build the query
         $query = "DELETE FROM " . self::TABLE_NAME . " WHERE id = :id";
