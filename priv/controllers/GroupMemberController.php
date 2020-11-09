@@ -5,6 +5,40 @@ class GroupMemberController
 {
     const TABLE_NAME = "groupmembers";
 
+    static function authenticateGroupMember()
+    {
+        header('Content-Type: application/json');
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        // Check if data is valid
+        $invalidDataMsg = "";
+        $isDataValid = JsonValidator::validateData($data, GroupController::RESOURCES, true, $invalidDataMsg);
+        if (!$isDataValid) {
+            http_response_code(400);
+            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            return false;
+        }
+
+        // Check if group exists and the password is correct
+        $group = GroupController::fetchGroup($data["name"]);
+
+        if ($group) {
+            // Verify password
+            if (password_verify($data["password"], $group["password"]))
+            {
+                return true;
+            } else {
+                http_response_code(401);
+                echo json_encode(array("errormessage" => "Wrong password."));
+                return false;
+            }
+        } else {
+            http_response_code(401);
+            echo json_encode(array("errormessage" => "Group with this name does not exist."));
+            return false;
+        }
+    }
+
     static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg = null) {
         // Check if token is valid
         $token = TokenManager::getDecodedAccessToken($outErrorMsg);
