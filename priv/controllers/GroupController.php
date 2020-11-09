@@ -16,6 +16,19 @@ class GroupController
         'password' => JsonValidator::T_STRING
     );
 
+    static function fetchGroupById($id, $fetchStyle=PDO::FETCH_ASSOC) {
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = :id";
+
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        // Bind id
+        $statement->bindParam(':id', $id, PDO::PARAM_INT);
+        // Execute the statement and fetch group information
+        $statement->execute();
+        return $statement->fetch($fetchStyle);
+    }
 
     static function fetchGroup($name, $fetchStyle=PDO::FETCH_ASSOC) {
         $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE name = :name";
