@@ -12,20 +12,22 @@ class GroupMemberController
             return false;
         }
         $userid = $token->data->userid;
-        $groupMember = self::fetchGroupMember($userid);
+        $groups = UserController::fetchAllGroups($userid, PDO::FETCH_OBJ);
 
-        // Check if the fetched groupid equals the groupid in the request
-        if ($groupMember && $groupMember["groupid"] == $groupid) {
-            // Check if the user has master privileges in case they are required
-            if ($requireMaster && $groupMember["master"] === 0) {
-                $outErrorMsg = "Master privileges required.";
-                return false;
+        foreach ($groups as $group) {
+            // Check if the fetched groupid equals the groupid in the request
+            if ($group->groupid == $groupid) {
+                // Check if the user has master privileges in case they are required
+                if ($requireMaster && $group->master === 0) {
+                    $outErrorMsg = "Master privileges required.";
+                    return false;
+                }
+                return true;
             }
-            return true;
-        } else {
-            $outErrorMsg = "You are not a member of this group.";
-            return false;
         }
+
+        $outErrorMsg = "You are not a member of this group.";
+        return false;
     }
 
     private static function fetchGroupMember($userid) {
@@ -36,7 +38,6 @@ class GroupMemberController
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        // Bind name
         $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
         // Execute the statement and fetch user information
         $statement->execute();
