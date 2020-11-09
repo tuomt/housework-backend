@@ -86,6 +86,18 @@ class UserController
         }
     }
 
+    static function fetchAllGroups($userid, $fetchStyle = PDO::FETCH_ASSOC) {
+        $query = "SELECT * FROM " . GroupMemberController::TABLE_NAME . " WHERE userid = :userid";
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
+        // Execute the statement and fetch user information
+        $statement->execute();
+        return $statement->fetchAll($fetchStyle);
+    }
+
     static function getNewAccessToken($id) {
         header('Content-Type: application/json');
         $tokenVerificationError = "";
