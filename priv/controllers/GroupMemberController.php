@@ -84,11 +84,64 @@ class GroupMemberController
         // Authorize with token
     }
 
-    static function createMember($groupid) {
-        // TODO: implement
+    static function createMember($groupid, $master=0) {
         // POST /api/groups/{groupid}/members with group name + password
+        $authenticated = self::authenticateGroupMember();
+        if (!$authenticated) {
+            return false;
+        }
+
         // Authorize with token, so that you can only create member of yourself
-        // If is already in the group, decline request
+        $tokenVerificationError = "";
+        $token = TokenManager::getDecodedAccessToken($tokenVerificationError);
+        if (!$token) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
+
+        // Check that the group exists
+        $groupExists = GroupController::fetchGroupById($groupid);
+        if ($groupExists === false) {
+            http_response_code(400);
+            echo json_encode(array("errormessage" => "Group with this id does not exist."));
+            return false;
+        }
+
+        // Fetch all user's groups from the database
+        $userid = $token->data->userid;
+        $groups = UserController::fetchAllGroups($userid, PDO::FETCH_OBJ);
+        if ($groups !== false) {
+            foreach($groups as $group) {
+                // If user is already in the group, decline request
+                if ($group->groupid == $groupid) {
+                    http_response_code(400);
+                    echo json_encode(array("errormessage" => "User is already a member of this group."));
+                    return false;
+                }
+            }
+        }
+
+        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (:groupid, :userid, :master)";
+
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $statement->bindParam(':master', $master, PDO::PARAM_INT);
+        $statement->execute();
+
+        if ($statement) {
+            http_response_code(200);
+            echo json_encode(array("message" => "User was added to the group successfully."));
+            return true;
+        } else {
+            http_response_code(500);
+            echo json_encode(array("errormessage" => "Failed to add user to the group."));
+            return false;
+        }
     }
 
     static function deleteMember($groupid, $userid) {
