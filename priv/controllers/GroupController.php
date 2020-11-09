@@ -16,6 +16,21 @@ class GroupController
         'password' => JsonValidator::T_STRING
     );
 
+
+    static function fetchGroup($name, $fetchStyle=PDO::FETCH_ASSOC) {
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE name = :name";
+
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        // Bind name
+        $statement->bindParam(':name', $name, PDO::PARAM_STR);
+        // Execute the statement and fetch group information
+        $statement->execute();
+        return $statement->fetch($fetchStyle);
+    }
+
     static function getGroup($id) {
         header('Content-Type: application/json');
         $authErrorMsg = "";
@@ -52,6 +67,7 @@ class GroupController
     }
 
     static function createGroup() {
+        // TODO: Get userid from token and create a group member of the user (with master privileges)
         header('Content-Type: application/json');
         $data = json_decode(file_get_contents("php://input"), true);
         // Check if data is valid
