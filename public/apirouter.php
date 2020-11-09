@@ -31,6 +31,9 @@ $router->map('PUT', '/api/groups/[i:id]', 'GroupController::modifyGroup');
 $router->map('PATCH', '/api/groups/[i:id]', 'GroupController::modifyGroupPartially');
 $router->map('DELETE', '/api/groups/[i:id]', 'GroupController::deleteGroup');
 
+// Requests related to group members
+$router->map('POST', '/api/groups/[i:groupid]/members', 'GroupMemberController::createMember');
+
 // TODO: Requests related to tasks
 
 $match = $router->match();
