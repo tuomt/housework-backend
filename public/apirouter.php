@@ -19,10 +19,12 @@ $router->map('GET', '/api/users/[i:id]', 'UserController::getUser');
 $router->map('POST', '/api/users', 'UserController::createUser');
 $router->map('PATCH', '/api/users/[i:id]', 'UserController::modifyUserPartially');
 $router->map('DELETE', '/api/users/[i:id]', 'UserController::deleteUser');
-
-// Tokens
-$router->map('POST', '/api/tokens', 'UserController::authenticateUser');
+// Route for getting a new access token
 $router->map('POST', '/api/users/[i:id]/access-token', 'UserController::getNewAccessToken');
+
+// Map authentication URIs
+$router->map('POST', '/api/credentials/user', 'UserController::authenticateUser');
+//$router->map('POST', '/api/credentials/group', 'GroupMemberController::authenticateGroupMember');
 
 // Requests related to groups
 $router->map('GET', '/api/groups/[i:id]', 'GroupController::getGroup');
