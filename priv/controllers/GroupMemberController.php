@@ -70,6 +70,15 @@ class GroupMemberController
         return false;
     }
 
+    static function authorizeViaGroupToken($token, $groupid, &$outTokenError) {
+        $token = TokenManager::decodeGroupToken($token, $outTokenError);
+        if (!$token || $token->data->groupid != $groupid) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     private static function fetchGroupMember($userid) {
         // Fetch user's groupid and master value from database
         $query = "SELECT groupid, master FROM " . self::TABLE_NAME . " WHERE userid = :userid";
