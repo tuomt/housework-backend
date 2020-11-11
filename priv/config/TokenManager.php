@@ -42,25 +42,28 @@ class TokenManager
         return JWT::encode($token, $key, self::ALGORITHM);
     }
 
-    static function getDecodedAccessToken(&$outErrorMsg = null) {
+    static function getDecodedAccessToken(&$outErrorMsg=null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
         return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
     }
 
-    static function getDecodedRefreshToken(&$outErrorMsg = null) {
+    static function getDecodedRefreshToken(&$outErrorMsg=null) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
         return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
     }
 
-    private static function decodeTokenFromHeader($key, &$outErrorMsg = null) {
+    private static function decodeTokenFromHeader($key, &$outErrorMsg=null) {
         $token = self::getTokenFromHeaders();
         if ($token === false) {
             $outErrorMsg = "Bearer token was not provided in the authorization header or the format was invalid.";
             return false;
         }
+        return self::decodeToken($token, $key, $outErrorMsg);
+    }
 
+    private static function decodeToken($token, $key, &$outErrorMsg=null) {
         try {
             $token = JWT::decode($token, $key, array(self::ALGORITHM));
             return $token;
