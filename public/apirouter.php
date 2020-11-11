@@ -24,7 +24,7 @@ $router->map('POST', '/api/users/[i:id]/access-token', 'UserController::getNewAc
 
 // Map authentication URIs
 $router->map('POST', '/api/credentials/user', 'UserController::authenticateUser');
-//$router->map('POST', '/api/credentials/group', 'GroupMemberController::authenticateGroupMember');
+$router->map('POST', '/api/credentials/group', 'GroupMemberController::authenticateGroupMember');
 
 // Requests related to groups
 $router->map('GET', '/api/groups/[i:id]', 'GroupController::getGroup');
