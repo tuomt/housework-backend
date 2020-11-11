@@ -10,6 +10,7 @@ class TokenManager
     const ALGORITHM = 'HS256';
     const AT_EXPIRATION = 900;
     const RT_EXPIRATION = 15778463;
+    const GT_EXPIRATION = 900;
 
     static function createAccessToken($userid) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
@@ -25,7 +26,14 @@ class TokenManager
         return self::encodeToken($data, self::RT_EXPIRATION, $privateKey);
     }
 
-    private static function encodeToken($userid, $expiration, $key) {
+    static function createGroupToken($groupid) {
+        $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
+        $privateKey = $secrets->groupTokenKey;
+        $data = array("groupid" => $groupid);
+        return self::encodeToken($data, self::GT_EXPIRATION, $privateKey);
+    }
+
+    private static function encodeToken($data, $expiration, $key) {
         $iat = time(); // The time when token is generated
         $nbf = $iat; // The timestamp when consideration of token starts
         $exp = $iat + $expiration; // Expiration timestamp
@@ -52,6 +60,12 @@ class TokenManager
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
         return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
+    }
+
+    static function decodeGroupToken($token, &$outErrorMsg=null) {
+        $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
+        $privateKey = $secrets->groupTokenKey;
+        return self::decodeToken($token, $privateKey, $outErrorMsg);
     }
 
     private static function decodeTokenFromHeader($key, &$outErrorMsg=null) {
