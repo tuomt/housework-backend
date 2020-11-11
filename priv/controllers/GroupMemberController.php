@@ -66,6 +66,7 @@ class GroupMemberController
             }
         }
 
+        // TODO: check if the group doesn't exist anymore
         $outErrorMsg = "You are not a member of this group.";
         return false;
     }
@@ -100,21 +101,39 @@ class GroupMemberController
     }
 
     static function createMember($groupid, $master=0) {
-        // POST /api/groups/{groupid}/members with group name + password
-        $authenticated = self::authenticateGroupMember();
-        if (!$authenticated) {
-            return false;
-        }
+        header('Content-Type: application/json');
 
-        // Authorize with token, so that you can only create member of yourself
-        $tokenVerificationError = "";
-        $token = TokenManager::getDecodedAccessToken($tokenVerificationError);
-        if (!$token) {
+        // Check if access-token is valid
+        $accessTokenError = "";
+        $accessToken = TokenManager::getDecodedAccessToken($accessTokenError);
+        if (!$accessToken) {
             http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            echo json_encode(array("errormessage" => "Permission denied. $accessTokenError"));
             return false;
         }
 
+        $data = json_decode(file_get_contents("php://input"), true);
+        // Check if data is valid
+        $invalidDataMsg = "";
+        $resources = array("grouptoken" => JsonValidator::T_STRING);
+        $isDataValid = JsonValidator::validateData($data, $resources, true, $invalidDataMsg);
+        if (!$isDataValid) {
+            http_response_code(400);
+            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            return false;
+        }
+
+        // Check if group-token is valid
+        $groupTokenError = "";
+        $authorized = self::authorizeViaGroupToken($data["grouptoken"], $groupid, $groupTokenError);
+        if (!$authorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permisson denied. $groupTokenError"));
+            return false;
+        }
+
+        /* This part is unnecessary because the group token is provided by server
+           and it includes groupid which is checked in authorization process
         // Check that the group exists
         $groupExists = GroupController::fetchGroupById($groupid);
         if ($groupExists === false) {
@@ -122,9 +141,10 @@ class GroupMemberController
             echo json_encode(array("errormessage" => "Group with this id does not exist."));
             return false;
         }
+        */
 
         // Fetch all user's groups from the database
-        $userid = $token->data->userid;
+        $userid = $accessToken->data->userid;
         $groups = UserController::fetchAllGroups($userid, PDO::FETCH_OBJ);
         if ($groups !== false) {
             foreach($groups as $group) {
@@ -162,6 +182,6 @@ class GroupMemberController
     static function deleteMember($groupid, $userid) {
         // TODO: implement
         // DELETE /api/groups/{groupid}/members/{userid}
-        // Authorize with token, check if is master
+        // Authorize with token, check if is master or the user itself
     }
 }
