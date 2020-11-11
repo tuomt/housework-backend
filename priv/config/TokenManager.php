@@ -14,13 +14,15 @@ class TokenManager
     static function createAccessToken($userid) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
-        return self::encodeToken($userid, self::AT_EXPIRATION, $privateKey);
+        $data = array("userid" => $userid);
+        return self::encodeToken($data, self::AT_EXPIRATION, $privateKey);
     }
 
     static function createRefreshToken($userid) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
-        return self::encodeToken($userid, self::RT_EXPIRATION, $privateKey);
+        $data = array("userid" => $userid);
+        return self::encodeToken($data, self::RT_EXPIRATION, $privateKey);
     }
 
     private static function encodeToken($userid, $expiration, $key) {
@@ -34,9 +36,7 @@ class TokenManager
             "iat" => $iat,
             "nbf" => $nbf,
             "exp" => $exp,
-            "data" => array(
-                "userid" => $userid
-            )
+            "data" => $data
         );
 
         return JWT::encode($token, $key, self::ALGORITHM);
