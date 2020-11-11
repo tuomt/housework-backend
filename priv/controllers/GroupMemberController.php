@@ -80,18 +80,19 @@ class GroupMemberController
         }
     }
 
-    private static function fetchGroupMember($userid) {
+    private static function fetchGroupMember($groupid, $userid, $fetchStyle=PDO::FETCH_ASSOC) {
         // Fetch user's groupid and master value from database
-        $query = "SELECT groupid, master FROM " . self::TABLE_NAME . " WHERE userid = :userid";
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE groupid = :groupid and userid = :userid";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
         // Execute the statement and fetch user information
         $statement->execute();
-        return $statement->fetch(PDO::FETCH_ASSOC);
+        return $statement->fetch($fetchStyle);
     }
 
     static function getMembers($groupid) {
