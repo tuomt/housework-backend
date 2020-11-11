@@ -26,6 +26,12 @@ class GroupMemberController
             // Verify password
             if (password_verify($data["password"], $group["password"]))
             {
+                $groupToken = TokenManager::createGroupToken($group["id"]);
+                http_response_code(200);
+                echo json_encode(array(
+                    "groupid" => $group["id"],
+                    "grouptoken" => $groupToken
+                ));
                 return true;
             } else {
                 http_response_code(401);
