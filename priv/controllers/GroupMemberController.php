@@ -51,24 +51,23 @@ class GroupMemberController
         if ($token === false) {
             return false;
         }
-        $userid = $token->data->userid;
-        $groups = UserController::fetchAllGroups($userid, PDO::FETCH_OBJ);
 
-        foreach ($groups as $group) {
-            // Check if the fetched groupid equals the groupid in the request
-            if ($group->groupid == $groupid) {
-                // Check if the user has master privileges in case they are required
-                if ($requireMaster && $group->master === 0) {
-                    $outErrorMsg = "Master privileges required.";
-                    return false;
-                }
+        $userid = $token->data->userid;
+        // Fetch group member information from database
+        $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
+
+        // Check if the user is member of the group and has master privileges in case they are needed
+        if ($groupMember) {
+            if ($requireMaster && $groupMember->master === 0) {
+                $outErrorMsg = "Master privileges required.";
+                return false;
+            } else {
                 return true;
             }
+        } else {
+            $outErrorMsg = "You are not a member of this group or the group doesn't exist.";
+            return false;
         }
-
-        // TODO: check if the group doesn't exist anymore
-        $outErrorMsg = "You are not a member of this group.";
-        return false;
     }
 
     static function authorizeViaGroupToken($token, $groupid, &$outTokenError) {
