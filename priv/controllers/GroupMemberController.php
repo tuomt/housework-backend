@@ -100,7 +100,7 @@ class GroupMemberController
         // Authorize with token
     }
 
-    static function createMember($groupid, $master=0) {
+    static function createMember($groupid) {
         header('Content-Type: application/json');
 
         // Check if access-token is valid
@@ -132,29 +132,21 @@ class GroupMemberController
             return false;
         }
 
-        /* This part is unnecessary because the group token is provided by server
-           and it includes groupid which is checked in authorization process
-        // Check that the group exists
-        $groupExists = GroupController::fetchGroupById($groupid);
-        if ($groupExists === false) {
+        $userid = $accessToken->data->userid;
+        // Fetch group member information and check if the user is already a member of this group
+        $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
+        if ($groupMember) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Group with this id does not exist."));
+            echo json_encode(array("errormessage" => "User is already a member of this group."));
             return false;
         }
-        */
 
-        // Fetch all user's groups from the database
-        $userid = $accessToken->data->userid;
-        $groups = UserController::fetchAllGroups($userid, PDO::FETCH_OBJ);
-        if ($groups !== false) {
-            foreach($groups as $group) {
-                // If user is already in the group, decline request
-                if ($group->groupid == $groupid) {
-                    http_response_code(400);
-                    echo json_encode(array("errormessage" => "User is already a member of this group."));
-                    return false;
-                }
-            }
+        // Grant master privileges if the user has created the group
+        $group = GroupController::fetchGroupById($groupid, PDO::FETCH_OBJ);
+        if ($userid == $group->creatorid) {
+            $master = 1;
+        } else {
+            $master = 0;
         }
 
         $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (:groupid, :userid, :master)";
@@ -169,7 +161,7 @@ class GroupMemberController
         $statement->execute();
 
         if ($statement) {
-            http_response_code(200);
+            http_response_code(201);
             echo json_encode(array("message" => "User was added to the group successfully."));
             return true;
         } else {
