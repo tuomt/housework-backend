@@ -35,6 +35,7 @@ $router->map('DELETE', '/api/groups/[i:id]', 'GroupController::deleteGroup');
 
 // Requests related to group members
 $router->map('POST', '/api/groups/[i:groupid]/members', 'GroupMemberController::createMember');
+$router->map('GET', '/api/groups/[i:groupid]/members', 'GroupMemberController::getMembers');
 
 // TODO: Requests related to tasks
 
