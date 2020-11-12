@@ -95,9 +95,37 @@ class GroupMemberController
     }
 
     static function getMembers($groupid) {
-        // TODO: implement
-        // GET /api/groups/{groupid}/members
+        header('Content-Type: application/json');
         // Authorize with token
+        $authErrorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false, $authErrorMsg);
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+            return false;
+        }
+
+        $query = "SELECT u.id, u.name, m.master" .
+                " FROM " . self::TABLE_NAME . " as m, " . UserController::TABLE_NAME . " as u" .
+                " WHERE m.groupid = :groupid AND m.userid = u.id";
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        // Execute the statement and fetch all members
+        $statement->execute();
+        $members = $statement->fetchAll(PDO::FETCH_ASSOC);
+        // Respond
+        if ($members) {
+            http_response_code(200);
+            echo json_encode($members);
+            return true;
+        } else {
+            http_response_code(404);
+            echo json_encode(array("errormessage" => "This group does not have any members."));
+            return false;
+        }
     }
 
     static function createMember($groupid) {
