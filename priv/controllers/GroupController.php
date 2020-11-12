@@ -80,8 +80,17 @@ class GroupController
     }
 
     static function createGroup() {
-        // TODO: Get userid from token and create a group member of the user (with master privileges)
         header('Content-Type: application/json');
+
+        $tokenVerificationError = "";
+        $accessToken = TokenManager::getDecodedAccessToken($tokenVerificationError);
+        if (!$accessToken) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+            return false;
+        }
+        $userid = $accessToken->data->userid;
+
         $data = json_decode(file_get_contents("php://input"), true);
         // Check if data is valid
         $invalidDataMsg = "";
@@ -101,7 +110,7 @@ class GroupController
 
         // Build the query
         $query = "INSERT INTO " . self::TABLE_NAME .
-            " VALUES (null, :name, :password)";
+            " VALUES (null, :creatorid, :name, :password)";
 
         // Connect to database
         $db = new Database();
@@ -112,12 +121,16 @@ class GroupController
         // Bind params
         $statement->bindParam(':name', $data["name"], PDO::PARAM_STR);
         $statement->bindParam(':password', $passwordHash, PDO::PARAM_STR);
+        $statement->bindParam(':creatorid', $userid, PDO::PARAM_INT);
 
         // Send a response depending on the outcome of the query
         if ($statement->execute()) {
-            // TODO: change this to respond with details of the created group
             http_response_code(201);
-            echo json_encode(array("message" => "Group was created successfully."));
+            echo json_encode(array(
+                "id" => (int)$conn->lastInsertId(),
+                "creatorid" => (int)$userid,
+                "name" => $data["name"]
+            ));
             return true;
         } else {
             http_response_code(500);
