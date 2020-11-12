@@ -55,7 +55,7 @@ class GroupController
         }
 
         // Build the query
-        $query = "SELECT id, name FROM " . self::TABLE_NAME .
+        $query = "SELECT id, creatorid, name FROM " . self::TABLE_NAME .
                  " WHERE id = :id";
 
         // Connect to database
