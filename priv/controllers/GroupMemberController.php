@@ -58,8 +58,7 @@ class GroupMemberController
 
         // Check if the user has required rights
         if ($groupMember) {
-            // Check if the user is one of the authorized users
-            if ($authorizedUsers !== null && in_array($userid, $authorizedUsers)) {
+            if ($authorizedUsers !== null && in_array($userid, $authorizedUsers, true)) {
                 return true;
             }
             // Check master privileges
