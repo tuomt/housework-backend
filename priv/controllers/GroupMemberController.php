@@ -205,8 +205,44 @@ class GroupMemberController
     }
 
     static function deleteMember($groupid, $userid) {
-        // TODO: implement
-        // DELETE /api/groups/{groupid}/members/{userid}
-        // Authorize with token, check if is master or the user itself
+        header('Content-Type: application/json');
+
+        // Check if access-token is valid
+        $accessTokenError = "";
+        $accessToken = TokenManager::getDecodedAccessToken($accessTokenError);
+        if (!$accessToken) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $accessTokenError"));
+            return false;
+        }
+
+        $authError = "";
+        $authorized = self::authorizeGroupMember($groupid, $userid, $authError, array($userid));
+        if (!$authorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $authError"));
+            return false;
+        }
+
+        $query = "DELETE FROM " . self::TABLE_NAME . " WHERE groupid = :groupid AND userid = :userid";
+
+        // Connect to database
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindValue(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindValue(':userid', $userid, PDO::PARAM_INT);
+        // Execute the statement and send a response
+        $statement->execute();
+
+        if ($statement->rowCount() > 0) {
+            http_response_code(200);
+            echo json_encode(array("message" => "Successfully deleted member."));
+            return true;
+        } else {
+            http_response_code(500);
+            echo json_encode(array("errormessage" => "Failed to delete member."));
+            return false;
+        }
     }
 }
