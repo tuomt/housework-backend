@@ -11,6 +11,7 @@ require __DIR__ . '/../priv/config/TokenManager.php';
 require __DIR__ . '/../priv/controllers/UserController.php';
 require __DIR__ . '/../priv/controllers/GroupController.php';
 require __DIR__ . '/../priv/controllers/GroupMemberController.php';
+require __DIR__ . '/../priv/controllers/TaskController.php';
 
 $router = new AltoRouter();
 
@@ -38,7 +39,8 @@ $router->map('POST', '/api/groups/[i:groupid]/members', 'GroupMemberController::
 $router->map('GET', '/api/groups/[i:groupid]/members', 'GroupMemberController::getMembers');
 $router->map('DELETE', '/api/groups/[i:groupid]/members/[i:userid]', 'GroupMemberController::deleteMember');
 
-// TODO: Requests related to tasks
+// Routing for requests related to tasks
+$router->map('POST', '/api/groups/[i:groupid]/tasks', 'TaskController::createTask');
 
 $match = $router->match();
 
