@@ -45,14 +45,17 @@ class GroupMemberController
         }
     }
 
-    static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg=null, $authorizedUsers=null) {
+    static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg=null, $authorizedUsers=null, $accessToken=null) {
+        // If access token is not passed to the method, it will be fetched from the authorization header
+        if ($accessToken === null) {
+            $accessToken = TokenManager::getDecodedAccessToken($outErrorMsg);
+        }
         // Check if token is valid
-        $token = TokenManager::getDecodedAccessToken($outErrorMsg);
-        if ($token === false) {
+        if ($accessToken === false) {
             return false;
         }
 
-        $userid = $token->data->userid;
+        $userid = $accessToken->data->userid;
         // Fetch group member information from database
         $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
 
