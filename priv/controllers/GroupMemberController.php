@@ -45,7 +45,7 @@ class GroupMemberController
         }
     }
 
-    static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg = null) {
+    static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg=null, $authorizedUsers=null) {
         // Check if token is valid
         $token = TokenManager::getDecodedAccessToken($outErrorMsg);
         if ($token === false) {
@@ -56,8 +56,13 @@ class GroupMemberController
         // Fetch group member information from database
         $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
 
-        // Check if the user is member of the group and has master privileges in case they are needed
+        // Check if the user has required rights
         if ($groupMember) {
+            // Check if the user is one of the authorized users
+            if ($authorizedUsers !== null && in_array($userid, $authorizedUsers)) {
+                return true;
+            }
+            // Check master privileges
             if ($requireMaster && $groupMember->master === 0) {
                 $outErrorMsg = "Master privileges required.";
                 return false;
