@@ -41,6 +41,7 @@ $router->map('DELETE', '/api/groups/[i:groupid]/members/[i:userid]', 'GroupMembe
 
 // Routing for requests related to tasks
 $router->map('POST', '/api/groups/[i:groupid]/tasks', 'TaskController::createTask');
+$router->map('GET', '/api/groups/[i:groupid]/tasks', 'TaskController::getTasks');
 
 $match = $router->match();
 
