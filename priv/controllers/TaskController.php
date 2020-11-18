@@ -14,7 +14,7 @@ class TaskController
         'recurring' => JsonValidator::T_INT_NULLABLE,
         'saved' => JsonValidator::T_INT,
         'state' => JsonValidator::T_INT,
-        'comment' => JsonValidator::T_STRING
+        'comment' => JsonValidator::T_STRING_NULLABLE
     );
 
     static function createTask($groupid) {
@@ -72,6 +72,37 @@ class TaskController
         } else {
             http_response_code(500);
             echo json_encode(array("errormessage" => "Failed to create a task."));
+            return false;
+        }
+    }
+
+    static function getTasks($groupid) {
+        header('Content-Type: application/json');
+        $errorMsg = "";
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false, $errorMsg);
+
+        if (!$isAuthorized) {
+            http_response_code(403);
+            echo json_encode(array("errormessage" => "Permission denied. $errorMsg"));
+            return false;
+        }
+
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE groupid = :groupid";
+
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->execute();
+        $tasks = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($tasks) {
+            http_response_code(200);
+            echo json_encode($tasks);
+            return true;
+        } else {
+            http_response_code(404);
+            echo json_encode(array("errormessage" => "This group does not have any tasks."));
             return false;
         }
     }
