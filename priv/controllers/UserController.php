@@ -15,14 +15,12 @@ class UserController
     const RESOURCES = array(
         'name' => JsonValidator::T_STRING,
         'password' => JsonValidator::T_STRING_NULLABLE,
-        'master' => JsonValidator::T_INT,
         'email' => JsonValidator::T_STRING_NULLABLE
     );
 
     // These resources can be modified with a PATCH-request
     const PATCHABLE_RESOURCES = array(
         'password' => JsonValidator::T_STRING_NULLABLE,
-        'master' => JsonValidator::T_INT,
         'email' => JsonValidator::T_STRING_NULLABLE
     );
 
@@ -128,7 +126,7 @@ class UserController
         }
 
         // Build the query
-        $query = "SELECT  id, name, master, email" .
+        $query = "SELECT  id, name, email" .
             " FROM " . self::TABLE_NAME .
             " WHERE id = :id";
 
@@ -175,7 +173,7 @@ class UserController
 
         // Build the query
         $query = "INSERT INTO " . self::TABLE_NAME .
-            " VALUES (null, :name, :password, :master, :email)";
+            " VALUES (null, :name, :password, :email)";
 
         // Connect to database
         $db = new Database();
@@ -186,7 +184,6 @@ class UserController
         // Bind params
         $statement->bindParam(':name', $data["name"], PDO::PARAM_STR);
         $statement->bindParam(':password', $passwordHash, PDO::PARAM_STR);
-        $statement->bindParam(':master', $data["master"], PDO::PARAM_INT);
         $statement->bindParam(':email', $data["email"], PDO::PARAM_STR);
 
         // Send a response depending on the outcome of the query
@@ -195,7 +192,6 @@ class UserController
             echo json_encode(array(
                 "id" => (int)$conn->lastInsertId(),
                 "name" => $data["name"],
-                "master" => $data["master"],
                 "email" => $data["email"]
             ));
             return true;
