@@ -19,6 +19,7 @@ class UserController
     );
 
     // These resources can be modified with a PATCH-request
+    // TODO: make name patchable
     const PATCHABLE_RESOURCES = array(
         'password' => JsonValidator::T_STRING_NULLABLE,
         'email' => JsonValidator::T_STRING_NULLABLE
@@ -26,7 +27,7 @@ class UserController
 
     // These resources are used for authentication
     const AUTHENTICATION_RESOURCES = array(
-        'name' => JsonValidator::T_STRING,
+        'email' => JsonValidator::T_STRING,
         'password' => JsonValidator::T_STRING_NULLABLE,
     );
 
@@ -45,15 +46,14 @@ class UserController
         }
 
         // Check if user exists and the password is correct
-        // TODO: user name must be unique, create alias column in users table
-        $query = "SELECT id, password FROM " . self::TABLE_NAME . " WHERE name = :name";
+        $query = "SELECT id, password FROM " . self::TABLE_NAME . " WHERE email = :email";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        // Bind name
-        $statement->bindParam(':name', $data["name"]);
+        // Bind email
+        $statement->bindParam(':email', $data["email"]);
         // Execute the statement and fetch user information
         $statement->execute();
         $user = $statement->fetch(PDO::FETCH_ASSOC);
@@ -78,8 +78,8 @@ class UserController
                 return false;
             }
         } else {
-            http_response_code(401);
-            echo json_encode(array("errormessage" => "User with this name does not exist."));
+            http_response_code(404);
+            echo json_encode(array("errormessage" => "User with this email does not exist."));
             return false;
         }
     }
