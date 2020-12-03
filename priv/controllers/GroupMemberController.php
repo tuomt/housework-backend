@@ -197,7 +197,9 @@ class GroupMemberController
 
         if ($statement) {
             http_response_code(201);
-            echo json_encode(array("message" => "User was added to the group successfully."));
+            echo json_encode(array("groupid" => (int)$groupid,
+                "userid" => $userid,
+                "master" => $master));
             return true;
         } else {
             http_response_code(500);
