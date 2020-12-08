@@ -30,7 +30,6 @@ $router->map('POST', '/api/credentials/group', 'GroupMemberController::authentic
 // Requests related to groups
 $router->map('GET', '/api/groups/[i:id]', 'GroupController::getGroup');
 $router->map('POST', '/api/groups', 'GroupController::createGroup');
-$router->map('PUT', '/api/groups/[i:id]', 'GroupController::modifyGroup');
 $router->map('PATCH', '/api/groups/[i:id]', 'GroupController::modifyGroupPartially');
 $router->map('DELETE', '/api/groups/[i:id]', 'GroupController::deleteGroup');
 
