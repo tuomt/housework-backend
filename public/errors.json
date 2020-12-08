@@ -1,0 +1,127 @@
+[
+  {
+    "type": "unhandled_exception",
+    "message": "Unhandled exception occurred in the API.",
+    "details": null
+  },
+  {
+    "type": "page_not_found",
+    "message": "Page not found.",
+    "details": null
+  },
+  {
+    "type": "database_query_failed",
+    "message": "Failed to execute database query.",
+    "details": null
+  },
+  {
+    "type": "permission_denied",
+    "message": "You don't have permission to access this resource.",
+    "details": null
+  },
+  {
+    "type": "privileges_required",
+    "message": "Master privileges required.",
+    "details": null
+  },
+  {
+    "type": "incorrect_password",
+    "message": "Password was incorrect.",
+    "details": null
+  },
+  {
+    "type": "incorrect_group_password",
+    "message": "Group password was incorrect.",
+    "details": null
+  },
+  {
+    "type": "user_not_found",
+    "message": "Could not find user.",
+    "details": null
+  },
+  {
+    "type": "group_not_found",
+    "message": "Could not find group.",
+    "details": null
+  },
+  {
+    "type": "user_is_already_member",
+    "message": "You are already a member of the group",
+    "details": null
+  },
+  {
+    "type": "group_has_no_members",
+    "message": "The group does not have any members.",
+    "details": null
+  },
+  {
+    "type": "group_has_no_tasks",
+    "message": "The group does not have any tasks.",
+    "details": null
+  },
+  {
+    "type": "group_member_not_found",
+    "message": "User is not a member of the group.",
+    "details": "The group doesn't have a member with the provided id. It is also possible that the group does not exist."
+  },
+  {
+    "type": "group_member_authorization_failed",
+    "message": "Group member authorization failed.",
+    "details": null
+  },
+  {
+    "type": "bearer_token_not_provided",
+    "message": "Bearer token was not provided.",
+    "details": null
+  },
+  {
+    "type": "invalid_access_token",
+    "message": "Access token was invalid.",
+    "details": null
+  },
+  {
+    "type": "invalid_refresh_token",
+    "message": "Refresh token was invalid.",
+    "details": null
+  },
+  {
+    "type": "invalid_group_token",
+    "message": "Group token was invalid.",
+    "details": null
+  },
+  {
+    "type": "invalid_input_data",
+    "message": "Invalid input data in the request.",
+    "details": null
+  },
+  {
+    "type": "invalid_username",
+    "message": "Username must be 2-21 characters long.",
+    "details": null
+  },
+  {
+    "type": "invalid_password",
+    "message": "Password must be 8-85 characters long.",
+    "details": null
+  },
+  {
+    "type": "invalid_email",
+    "message": "Email must be 5-85 characters long.",
+    "details": null
+  },
+  {
+    "type": "invalid_group_name",
+    "message": "Group name must be 3-21 characters long.",
+    "details": null
+  },
+  {
+    "type": "invalid_group_password",
+    "message": "Group password must be 5-85 characters long.",
+    "details": null
+  },
+  {
+    "type": "invalid_task_name",
+    "message": "Task name must be 3-42 characters long.",
+    "details": null
+  }
+]
