@@ -50,29 +50,50 @@ class TokenManager
         return JWT::encode($token, $key, self::ALGORITHM);
     }
 
-    static function getDecodedAccessToken(&$outErrorMsg=null) {
+    static function getDecodedAccessToken() {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
-        return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
+        $outErrorMsg = "";
+        $token = self::decodeTokenFromHeader($privateKey, $outErrorMsg);
+
+        if ($token === false) {
+            return new ApiError("invalid_access_token", $outErrorMsg);
+        } else {
+            return $token;
+        }
     }
 
-    static function getDecodedRefreshToken(&$outErrorMsg=null) {
+    static function getDecodedRefreshToken() {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
-        return self::decodeTokenFromHeader($privateKey, $outErrorMsg);
+        $outErrorMsg = "";
+        $token = self::decodeTokenFromHeader($privateKey, $outErrorMsg);
+
+        if ($token === false) {
+            return new ApiError("invalid_refresh_token", $outErrorMsg);
+        } else {
+            return $token;
+        }
     }
 
-    static function decodeGroupToken($token, &$outErrorMsg=null) {
+    static function decodeGroupToken($token) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->groupTokenKey;
-        return self::decodeToken($token, $privateKey, $outErrorMsg);
+        $outErrorMsg = "";
+        $token = self::decodeToken($token, $privateKey, $outErrorMsg);
+
+        if ($token === false) {
+            return new ApiError("invalid_group_token", $outErrorMsg);
+        } else {
+            return $token;
+        }
     }
 
     private static function decodeTokenFromHeader($key, &$outErrorMsg=null) {
         $token = self::getTokenFromHeaders();
         if ($token === false) {
-            $outErrorMsg = "Bearer token was not provided in the authorization header or the format was invalid.";
-            return false;
+            $details = "Bearer token was not provided in the authorization header or the format was invalid.";
+            return new ApiError("bearer_token_not_provided", $details);
         }
         return self::decodeToken($token, $key, $outErrorMsg);
     }
@@ -103,7 +124,8 @@ class TokenManager
 
         foreach ($headers as $header => $value) {
             if ($header === "AUTHORIZATION" && strpos($value, 'Bearer ') === 0) {
-                //echo $value, PHP_EOL;
+                // Parse bearer token from the header
+
                 if (strlen($value) > 7) {
                     $parts = explode(' ', $value, 2);
                     return $parts[1];
