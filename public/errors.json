@@ -91,7 +91,7 @@
   },
   {
     "type": "invalid_input_data",
-    "message": "Invalid input data in the request.",
+    "message": "Received invalid input data in the request.",
     "details": null
   },
   {
