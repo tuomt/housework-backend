@@ -95,8 +95,9 @@ class GroupMemberController
                 return true;
             }
         } else {
-            http_response_code(404);
-            echo new ApiError('group_member_not_found');
+            http_response_code(403);
+            $details = "User is not a member of the group.";
+            echo new ApiError('permission_denied', $details);
             return false;
         }
     }
