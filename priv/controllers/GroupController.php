@@ -16,6 +16,8 @@ class GroupController
         'password' => JsonValidator::T_STRING
     );
 
+    const AUTHENTICATION_RESOURCES = self::RESOURCES;
+
     static function fetchGroupById($id, $fetchStyle=PDO::FETCH_ASSOC) {
         $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = :id";
 
@@ -46,11 +48,10 @@ class GroupController
 
     static function getGroup($id) {
         header('Content-Type: application/json');
-        $authErrorMsg = "";
-        $isAuthorized = GroupMemberController::authorizeGroupMember($id, false, $authErrorMsg);
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+
+        // Check if the user has permission to access this resource
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, false);
+        if ($isAuthorized === false) {
             return false;
         }
 
@@ -64,17 +65,25 @@ class GroupController
         $statement = $conn->prepare($query);
         // Bind id
         $statement->bindParam(':id', $id, PDO::PARAM_INT);
+
         // Execute the statement
-        $statement->execute();
-        $group = $statement->fetch(PDO::FETCH_ASSOC);
-        // Send a response
-        if ($group) {
-            http_response_code(200);
-            echo json_encode($group);
-            return true;
+        if ($statement->execute()) {
+            $group = $statement->fetch(PDO::FETCH_ASSOC);
+            // Send a response
+            if ($group) {
+                http_response_code(200);
+                echo json_encode($group);
+                return true;
+            } else {
+                http_response_code(404);
+                $details = 'A group with this id does not exist.';
+                echo new ApiError('group_not_found', $details);
+                return false;
+            }
         } else {
-            http_response_code(404);
-            echo json_encode(array("errormessage" => "Could not find any matches."));
+            http_response_code(500);
+            $details = "An error occurred while trying to fetch group information.";
+            echo new ApiError('database_query_failed', $details);
             return false;
         }
     }
@@ -82,35 +91,41 @@ class GroupController
     static function createGroup() {
         header('Content-Type: application/json');
 
-        $tokenVerificationError = "";
-        $accessToken = TokenManager::getDecodedAccessToken($tokenVerificationError);
-        if (!$accessToken) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $tokenVerificationError"));
+        // Get access token
+        $accessToken = TokenManager::getDecodedAccessToken();
+
+        // Authorize
+        if ($accessToken instanceOf ApiError) {
+            // Authorization failed
+            http_response_code(401);
+            echo $accessToken;
             return false;
         }
+
+        // Get user id from the access token
         $userid = $accessToken->data->userid;
 
+        // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
+
         // Check if data is valid
-        $invalidDataMsg = "";
-        $isDataValid = JsonValidator::validateData($data, self::RESOURCES, true, $invalidDataMsg);
-        if (!$isDataValid) {
+        $dataError = JsonValidator::validateData($data, self::RESOURCES, true);
+        if ($dataError !== null) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            echo $dataError;
             return false;
         }
-        // Check if data meets requirements
-        $dataMeetsRequirements = self::testRequirements($data, $invalidDataMsg);
-        if (!$dataMeetsRequirements) {
-            http_response_code(400);
-            echo json_encode(array("errormessage" => "Received data does not meet the requirements. $invalidDataMsg"));
+
+        // Check if the input meets requirements
+        $requirementError = self::testRequirements($data);
+        if ($requirementError !== null) {
+            http_response_code(422);
+            echo $requirementError;
             return false;
         }
 
         // Build the query
-        $query = "INSERT INTO " . self::TABLE_NAME .
-            " VALUES (null, :creatorid, :name, :password)";
+        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (null, :creatorid, :name, :password)";
 
         // Connect to database
         $db = new Database();
@@ -133,11 +148,11 @@ class GroupController
             ));
             return true;
         } else {
+            // Query failed
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to create group."));
+            echo new ApiError("database_query_failed");
             return false;
         }
-
     }
 
     static function modifyGroup($id) {
@@ -207,12 +222,9 @@ class GroupController
     static function modifyGroupPartially($id) {
         header('Content-Type: application/json');
 
-        // Authorize user
-        $authErrorMsg = "";
-        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true, $authErrorMsg);
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+        // Check if the user has permission to access this resource
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true);
+        if ($isAuthorized === false) {
             return false;
         }
 
@@ -220,19 +232,18 @@ class GroupController
         $data = json_decode(file_get_contents("php://input"), true);
 
         // Check if data is valid
-        $invalidDataMsg = "";
-        $isDataValid = JsonValidator::validateData($data, self::RESOURCES, false, $invalidDataMsg);
-        if (!$isDataValid) {
+        $dataError = JsonValidator::validateData($data, self::RESOURCES, false);
+        if ($dataError !== null) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            echo $dataError;
             return false;
         }
 
-        // Check if data meets requirements
-        $dataMeetsRequirements = self::testRequirements($data, $invalidDataMsg);
-        if (!$dataMeetsRequirements) {
-            http_response_code(400);
-            echo json_encode(array("errormessage" => "Received data does not meet the requirements. $invalidDataMsg"));
+        // Check if the input meets requirements
+        $requirementError = self::testRequirements($data);
+        if ($requirementError !== null) {
+            http_response_code(422);
+            echo $requirementError;
             return false;
         }
 
@@ -278,17 +289,22 @@ class GroupController
         $statement->bindValue($valueIndex, $id, PDO::PARAM_INT);
 
         // Execute the statement
-        $statement->execute();
+        if ($statement->execute()) {
+            $changedRows = $statement->rowCount();
 
-        // Check if the update was successful
-        $changedRows = $statement->rowCount();
-        if ($changedRows > 0) {
-            http_response_code(200);
-            echo json_encode(array("message" => "Updated group successfully."));
-            return true;
+            // Check if the update was successful
+            if ($changedRows > 0) {
+                http_response_code(204);
+                return true;
+            } else {
+                http_response_code(404);
+                $details = 'A group with the requested id does not exist.';
+                echo new ApiError('group_not_found', $details);
+                return false;
+            }
         } else {
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to update group."));
+            echo new ApiError('database_query_failed');
             return false;
         }
     }
@@ -296,12 +312,9 @@ class GroupController
     static function deleteGroup($id) {
         header('Content-Type: application/json');
 
-        // Authorize user
-        $authErrorMsg = "";
-        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true, $authErrorMsg);
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+        // Check if the user has permission to access this resource
+        $isAuthorized = GroupMemberController::authorizeGroupMember($id, true);
+        if ($isAuthorized === false) {
             return false;
         }
 
@@ -316,20 +329,24 @@ class GroupController
         $statement->bindValue(':id', $id, PDO::PARAM_INT);
         // Execute the statement and send a response
         // execute() returns true if there was nothing to delete
-        $statement->execute();
-
-        if ($statement->rowCount() > 0) {
-            http_response_code(200);
-            echo json_encode(array("message" => "Successfully deleted group."));
-            return true;
+        if ($statement->execute()) {
+            if ($statement->rowCount() > 0) {
+                http_response_code(204);
+                return true;
+            } else {
+                http_response_code(404);
+                $details = 'A group with the requested id does not exist.';
+                echo new ApiError('group_not_found', $details);
+                return false;
+            }
         } else {
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to delete group."));
+            echo new ApiError('database_query_failed');
             return false;
         }
     }
 
-    private static function testRequirements(&$data, &$outFailureMsg) {
+    private static function testRequirements(&$data) {
         /*
          * Test if data meets requirements.
          * The data is passed as a reference and may be modified in the following way:
@@ -343,36 +360,46 @@ class GroupController
          * - The value of 'password' must be at least MIN_PASSWORD_LEN characters long
          * - The value of 'password' must be at most MAX_PASSWORD_LEN characters long
          *
-         * Optionally, a reference to a variable can be passed as outFailureMsg,
-         * which will be set to an appropriate failure message in case the requirements
-         * are not met.
+         * Returns null if all requirements are met,
+         * otherwise returns an ApiError object.
          */
 
         if (array_key_exists("name", $data)) {
             $data["name"] = trim($data["name"]);
-            if (!JsonValidator::validateStringLength(
-                $data["name"],
+
+            $lenDifference = JsonValidator::checkStringLength($data["name"],
                 self::MIN_NAME_LEN,
-                self::MAX_NAME_LEN,
-                "name",
-                $outFailureMsg
-            )) {
-                return false;
+                self::MAX_NAME_LEN);
+
+            if ($lenDifference !== 0) {
+                $details = null;
+
+                if ($lenDifference < 0) {
+                    $details = "The value of 'name' is too short.";
+                } else if ($lenDifference > 0) {
+                    $details = "The value of 'name' is too long.";
+                }
+                return new ApiError("invalid_group_name", $details);
             }
         }
 
         if (array_key_exists("password", $data)) {
-            if (!JsonValidator::validateStringLength(
-                $data["password"],
+            $lengthDifference = JsonValidator::checkStringLength($data["password"],
                 self::MIN_PASSWORD_LEN,
-                self::MAX_PASSWORD_LEN,
-                "password",
-                $outFailureMsg
-            )) {
-                return false;
+                self::MAX_PASSWORD_LEN);
+
+            if ($lengthDifference !== 0) {
+                $details = null;
+
+                if ($lengthDifference < 0) {
+                    $details = "The value of 'password' is too short.";
+                } else if ($lengthDifference > 0) {
+                    $details = "The value of 'password' is too long.";
+                }
+                return new ApiError("invalid_group_password", $details);
             }
         }
 
-        return true;
+        return null;
     }
 }

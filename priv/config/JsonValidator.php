@@ -11,7 +11,7 @@ class JsonValidator
     const T_STRING_NULLABLE = 101;
     const T_BOOL_NULLABLE = 102;
 
-    public static function validateData($data, $resources, $requireAllResources=false, &$outErrorMsg=null)
+    public static function validateData($data, $resources, $requireAllResources=false)
     {
         /*
          * Validates JSON data.
@@ -28,49 +28,52 @@ class JsonValidator
          * Example of a resources array:
          *
          * const RESOURCES = array(
-         *     'id' => "JsonValidator::T_INT",
-         *     'name' => "JsonValidator::T_STRING",
-         *     'age' => "JsonValidator::T_INT_NULLABLE",
-         *     'email' => "JsonValidator::T_STRING_NULLABLE",
-         *     'haslicense' => "JsonValidator::T_BOOL"
+         *     'id' => JsonValidator::T_INT,
+         *     'name' => JsonValidator::T_STRING,
+         *     'age' => JsonValidator::T_INT_NULLABLE,
+         *     'email' => JsonValidator::T_STRING_NULLABLE,
+         *     'haslicense' => JsonValidator::T_BOOL
          * );
          *
          * If the requireAllResources argument is set to true (default: false),
          * the function will return false in case the data does not contain all
          * of the keys defined in the resources array.
          *
-         * Optional argument outErrorMsg will be set to an appropriate error message
-         * in case any validation condition is not fulfilled or the validation fails.
+         * Returns null if the data was valid, else returns an ApiError object.
         */
 
         if (empty($data) || !is_array($data)) {
-            $outErrorMsg = "Invalid format.";
-            return false;
+            return new ApiError('invalid_input_data', 'Invalid syntax, expected a JSON object.');
         }
 
         if ($requireAllResources) {
+            // Check if any keys are missing
             $keyDifference = array_diff_key($resources, $data);
+
             if (!empty($keyDifference)) {
-                    $outErrorMsg = "The following keys are missing: ";
+                    $errorDetails = "Following keys are missing: ";
                     $count = count($keyDifference);
                     $i = 1;
                     foreach ($keyDifference as $key => $value) {
-                        $outErrorMsg .= "'$key'";
-                        if ($i < $count) $outErrorMsg .= ", ";
+                        $errorDetails .= "'$key'";
+                        if ($i < $count) $errorDetails .= ", ";
                         $i++;
                     }
-                    return false;
+                    return new ApiError("invalid_input_data", $errorDetails);
                 }
         }
 
         // Validate each key and each value one by one
         foreach ($data as $key => $value) {
-            if (!self::validateKeyValue($key, $value, $resources, $outErrorMsg)) return false;
+            $keyValueError = self::validateKeyValue($key, $value, $resources);
+            if ($keyValueError !== null) {
+                return $keyValueError;
+            }
         }
-        return true;
+        return null;
     }
 
-    public static function validateKeyValue($key, $value, $resources, &$outErrorMsg=null)
+    public static function validateKeyValue($key, $value, $resources)
     {
         /*
          * Validates a JSON key => value pair.
@@ -88,36 +91,33 @@ class JsonValidator
          * Example of a resources array:
          *
          * const RESOURCES = array(
-         *     'id' => "JsonValidator::T_INT",
-         *     'name' => "JsonValidator::T_STRING",
-         *     'age' => "JsonValidator::T_INT_NULLABLE",
-         *     'email' => "JsonValidator::T_STRING_NULLABLE",
-         *     'haslicense' => "JsonValidator::T_BOOL"
+         *     'id' => JsonValidator::T_INT,
+         *     'name' => JsonValidator::T_STRING,
+         *     'age' => JsonValidator::T_INT_NULLABLE,
+         *     'email' => JsonValidator::T_STRING_NULLABLE,
+         *     'haslicense' => JsonValidator::T_BOOL
          * );
          *
-         * Optional argument outErrorMsg will be set to an appropriate error message
-         * in case any validation condition is not fulfilled or the validation fails.
-         *
-         * Returns false if the key is not a modifiable resource, if the value is of wrong
-         * data type or the validation fails.
-         * Returns true if the key is a modifiable resource and the value is valid.
+         * Returns null if the key is a modifiable resource and the value is valid.
+         * Returns an ApiError object if the key is not a modifiable resource,
+         * if the value is of wrong data type or the validation fails.
          */
 
+        // Check if the key is a modifiable resource
         if (!array_key_exists($key, $resources)) {
-            $outErrorMsg = "The key '$key' is not a modifiable resource.";
-            return false;
+            $errorDetails = "The key '$key' is not a modifiable resource.";
+            return new ApiError("invalid_input_data", $errorDetails);
         } else {
+            // Get the required resource type
             $resourceType = $resources[$key];
+            // Check if client's input matches the required type
             $validType = self::validateResourceType($resourceType, $value);
 
             if ($validType === true) {
-                return true;
-            } else if ($validType === false) {
-                $outErrorMsg = "Failed to validate key '$key', invalid resource type.";
-                return false;
+                return null;
             } else {
-                $outErrorMsg = "The value for the key '$key' should be of type $validType.";
-                return false;
+                $errorDetails = "The value for the key '$key' should be of type $validType.";
+                return new ApiError("invalid_input_data", $errorDetails);
             }
         }
     }
@@ -137,12 +137,31 @@ class JsonValidator
         } else return true;
     }
 
+    public static function checkStringLength($string, $min=null, $max=null) {
+        /*
+         * Compares string length with minimum and/or maximum length(s).
+         * Both min and max parameters are inclusive.
+         *
+         * Returns the difference between string length and min or max.
+         * If the length is less than min, a negative integer is returned.
+         * A positive integer is returned in case the length is greater than max.
+         * If the length is within min and max, 0 is returned.
+         */
+        $len = strlen($string);
+
+        if ($min !== null && $len < $min) {
+            return -($min - $len);
+        } else if ($max !== null && $len > $max) {
+            return $len - $max;
+        } else return 0;
+    }
+
     private static function validateResourceType($resourceType, $value) {
         // Check if the value is of correct data type
         $validType = true;
         switch ($resourceType) {
             default:
-                return false;
+                throw new Exception("Resource type validation failed: type '$resourceType' does not exist");
             case self::T_INT:
                 if (!is_int($value)) {
                     $validType = "int";

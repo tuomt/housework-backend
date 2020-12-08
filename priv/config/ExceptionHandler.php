@@ -7,7 +7,7 @@ class ExceptionHandler
     static function handle($exception) {
         header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode(array("errormessage" => "Uncaught exception in the API."));
+        echo new ApiError("unhandled_exception");
         error_log($exception->getMessage());
     }
 

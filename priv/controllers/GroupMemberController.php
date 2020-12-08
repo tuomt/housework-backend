@@ -8,14 +8,17 @@ class GroupMemberController
     static function authenticateGroupMember()
     {
         header('Content-Type: application/json');
+
+        // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
 
         // Check if data is valid
-        $invalidDataMsg = "";
-        $isDataValid = JsonValidator::validateData($data, GroupController::RESOURCES, true, $invalidDataMsg);
-        if (!$isDataValid) {
+        $dataError = JsonValidator::validateData($data, GroupController::AUTHENTICATION_RESOURCES,
+            true);
+
+        if ($dataError !== null) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            echo $dataError;
             return false;
         }
 
@@ -34,52 +37,89 @@ class GroupMemberController
                 ));
                 return true;
             } else {
+                // Wrong password
                 http_response_code(401);
-                echo json_encode(array("errormessage" => "Wrong password."));
+                echo new ApiError('incorrect_group_password');
                 return false;
             }
         } else {
-            http_response_code(401);
-            echo json_encode(array("errormessage" => "Group with this name does not exist."));
+            http_response_code(404);
+            $details = 'Group with this name does not exist.';
+            echo new ApiError('group_not_found', $details);
             return false;
         }
     }
 
-    static function authorizeGroupMember($groupid, $requireMaster, &$outErrorMsg=null, $authorizedUsers=null, $accessToken=null) {
+    static function authorizeGroupMember($groupid, $requireMaster, $authorizedUsers=null, $accessToken=null) {
+        /*
+         * authorizedUsers must be an array of integers.
+         */
+
         // If access token is not passed to the method, it will be fetched from the authorization header
         if ($accessToken === null) {
-            $accessToken = TokenManager::getDecodedAccessToken($outErrorMsg);
+            $accessToken = TokenManager::getDecodedAccessToken();
         }
+
         // Check if token is valid
-        if ($accessToken === false) {
+        if ($accessToken instanceof ApiError) {
+            // Send error to client
+            http_response_code(401);
+            echo $accessToken;
             return false;
         }
 
+        // Get user id from the access token
         $userid = $accessToken->data->userid;
         // Fetch group member information from database
         $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
+
+        // Check if the database query failed
+        if ($groupMember instanceOf ApiError) {
+            http_response_code(500);
+            echo $groupMember;
+            return false;
+        }
 
         // Check if the user has required rights
         if ($groupMember) {
             if ($authorizedUsers !== null && in_array($userid, $authorizedUsers, true)) {
                 return true;
             }
+
             // Check master privileges
             if ($requireMaster && $groupMember->master === 0) {
-                $outErrorMsg = "Master privileges required.";
+                http_response_code(403);
+                echo new ApiError('privileges_required');
                 return false;
             } else {
                 return true;
             }
         } else {
-            $outErrorMsg = "You are not a member of this group or the group doesn't exist.";
+            http_response_code(404);
+            echo new ApiError('group_member_not_found');
             return false;
         }
     }
 
-    static function authorizeViaGroupToken($token, $groupid, &$outTokenError) {
-        $token = TokenManager::decodeGroupToken($token, $outTokenError);
-        if (!$token || $token->data->groupid != $groupid) {
+    static function authorizeViaGroupToken($token, $groupid) {
+        /*
+         * Authorize a group member via group token.
+         * Checks if the groupid included in the payload of the token matches the groupid argument.
+         *
+         * Returns true if the authorization is successful.
+         * Returns false if the token is invalid or if the groupid in the token does not match
+         * the groupid argument. An error is sent to the client if the authorization fails.
+         */
+        $token = TokenManager::decodeGroupToken($token);
+
+        if ($token instanceOf ApiError) {
+            http_response_code(401);
+            echo $token;
+            return false;
+        } else if ($token->data->groupid != $groupid) {
+            http_response_code(401);
+            $details = 'The group token was not valid for this group.';
+            echo new ApiError('invalid_group_token', $details);
             return false;
         } else {
             return true;
@@ -96,41 +136,54 @@ class GroupMemberController
         $statement = $conn->prepare($query);
         $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
         $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+
         // Execute the statement and fetch user information
-        $statement->execute();
-        return $statement->fetch($fetchStyle);
+        if ($statement->execute()) {
+            return $statement->fetch($fetchStyle);
+        } else {
+            $details = "An error occurred while trying to fetch group member information.";
+            return new ApiError('database_query_failed', $details);
+        }
     }
 
     static function getMembers($groupid) {
         header('Content-Type: application/json');
-        // Authorize with token
-        $authErrorMsg = "";
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false, $authErrorMsg);
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $authErrorMsg"));
+
+        // Check if the user has permission to access this resource
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false);
+        if ($isAuthorized === false) {
             return false;
         }
 
         $query = "SELECT u.id, u.name, m.master" .
                 " FROM " . self::TABLE_NAME . " as m, " . UserController::TABLE_NAME . " as u" .
                 " WHERE m.groupid = :groupid AND m.userid = u.id";
+
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+
         // Execute the statement and fetch all members
-        $statement->execute();
-        $members = $statement->fetchAll(PDO::FETCH_ASSOC);
-        // Respond
-        if ($members) {
-            http_response_code(200);
-            echo json_encode($members);
-            return true;
+        if ($statement->execute()) {
+            // Fetch all group members
+            $members = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+            // Respond
+            if ($members) {
+                http_response_code(200);
+                echo json_encode($members);
+                return true;
+            } else {
+                http_response_code(404);
+                echo new ApiError('group_has_no_members');
+                return false;
+            }
         } else {
-            http_response_code(404);
-            echo json_encode(array("errormessage" => "This group does not have any members."));
+            // Query failed
+            http_response_code(500);
+            echo new ApiError('database_query_failed');
             return false;
         }
     }
@@ -138,41 +191,52 @@ class GroupMemberController
     static function createMember($groupid) {
         header('Content-Type: application/json');
 
-        // Check if access-token is valid
-        $accessTokenError = "";
-        $accessToken = TokenManager::getDecodedAccessToken($accessTokenError);
-        if (!$accessToken) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $accessTokenError"));
+        // Get access token
+        $accessToken = TokenManager::getDecodedAccessToken();
+
+        // Check if access token is valid
+        if ($accessToken instanceOf ApiError) {
+            // Invalid token
+            http_response_code(401);
+            echo $accessToken;
             return false;
         }
 
+        // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
-        // Check if data is valid
-        $invalidDataMsg = "";
+
+        // Only group token is accepted as input
         $resources = array("grouptoken" => JsonValidator::T_STRING);
-        $isDataValid = JsonValidator::validateData($data, $resources, true, $invalidDataMsg);
-        if (!$isDataValid) {
+
+        // Check if data is valid
+        $dataError = JsonValidator::validateData($data, $resources, true);
+        if ($dataError !== null) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Received invalid data in the request. $invalidDataMsg"));
+            echo $dataError;
             return false;
         }
 
         // Check if group-token is valid
-        $groupTokenError = "";
-        $authorized = self::authorizeViaGroupToken($data["grouptoken"], $groupid, $groupTokenError);
-        if (!$authorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permisson denied. $groupTokenError"));
+        $isAuthorized = self::authorizeViaGroupToken($data["grouptoken"], $groupid);
+        if ($isAuthorized === false) {
             return false;
         }
 
+        // Get user id from the access token
         $userid = $accessToken->data->userid;
-        // Fetch group member information and check if the user is already a member of this group
+
+        // Fetch group member information
         $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
-        if ($groupMember) {
-            http_response_code(400);
-            echo json_encode(array("errormessage" => "User is already a member of this group."));
+
+        // Check if the database query failed
+        if ($groupMember instanceOf ApiError) {
+            http_response_code(500);
+            echo $groupMember;
+            return false;
+        } else if ($groupMember) {
+            // The user is already a member of the group
+            http_response_code(409);
+            echo new ApiError('user_is_already_member');
             return false;
         }
 
@@ -190,20 +254,21 @@ class GroupMemberController
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
+        // Bind params
         $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
         $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
         $statement->bindParam(':master', $master, PDO::PARAM_INT);
-        $statement->execute();
 
-        if ($statement) {
+        if ($statement->execute()) {
             http_response_code(201);
             echo json_encode(array("groupid" => (int)$groupid,
                 "userid" => $userid,
                 "master" => $master));
             return true;
         } else {
+            // Query failed
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to add user to the group."));
+            echo new ApiError("database_query_failed");
             return false;
         }
     }
@@ -211,6 +276,7 @@ class GroupMemberController
     static function deleteMember($groupid, $userid) {
         header('Content-Type: application/json');
 
+        /*
         // Check if access-token is valid
         $accessTokenError = "";
         $accessToken = TokenManager::getDecodedAccessToken($accessTokenError);
@@ -219,12 +285,11 @@ class GroupMemberController
             echo json_encode(array("errormessage" => "Permission denied. $accessTokenError"));
             return false;
         }
+        */
 
-        $authError = "";
-        $authorized = self::authorizeGroupMember($groupid, $userid, $authError, array($userid));
-        if (!$authorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $authError"));
+        // Check if the user has permission to access this resource
+        $isAuthorized = self::authorizeGroupMember($groupid, true, array((int)$userid));
+        if ($isAuthorized === false) {
             return false;
         }
 
@@ -236,16 +301,20 @@ class GroupMemberController
         $statement = $conn->prepare($query);
         $statement->bindValue(':groupid', $groupid, PDO::PARAM_INT);
         $statement->bindValue(':userid', $userid, PDO::PARAM_INT);
-        // Execute the statement and send a response
-        $statement->execute();
 
-        if ($statement->rowCount() > 0) {
-            http_response_code(200);
-            echo json_encode(array("message" => "Successfully deleted member."));
-            return true;
+        // Execute the statement and send a response
+        if ($statement->execute()) {
+            if ($statement->rowCount() > 0) {
+                http_response_code(204);
+                return true;
+            } else {
+                http_response_code(404);
+                echo new ApiError('group_member_not_found');
+                return false;
+            }
         } else {
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to delete member."));
+            echo new ApiError('database_query_failed');
             return false;
         }
     }

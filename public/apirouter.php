@@ -48,7 +48,8 @@ $match = $router->match();
 if ($match === false) {
     header('Content-Type: application/json');
     http_response_code(404);
-    echo json_encode(array("errormessage" => "Page not found or the HTTP-method is not supported for this page."));
+    $details = 'Page does not exist or the HTTP-method is not supported by this resource.';
+    echo new ApiError('page_not_found', $details);
 } else {
     $stmt = call_user_func_array($match['target'], $match['params']);
 }

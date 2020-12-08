@@ -19,28 +19,42 @@ class TaskController
 
     static function createTask($groupid) {
         header('Content-Type: application/json');
-        $errorMsg = "";
-        $accessToken = TokenManager::getDecodedAccessToken($errorMsg);
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, true, $authError, null, $accessToken);
+        // Get access token
+        $accessToken = TokenManager::getDecodedAccessToken();
 
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $errorMsg"));
+        // Check if access token validation failed
+        if ($accessToken instanceof ApiError) {
+            http_response_code('invalid_access_token');
+            // Send error to client
+            echo $accessToken;
             return false;
         }
 
+        // Check permissions
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, true, null, $accessToken);
+        if ($isAuthorized === false) {
+            return false;
+        }
+
+        // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
-        $isDataValid = JsonValidator::validateData($data, self::RESOURCES, true, $errorMsg);
-        if (!$isDataValid) {
+
+        // Check if data is valid
+        $dataError = JsonValidator::validateData($data, self::RESOURCES, true);
+        if ($dataError !== null) {
             http_response_code(400);
-            echo json_encode(array("errormessage" => "Received invalid data in the request. $errorMsg"));
+            echo $dataError;
             return false;
         }
+
+        // Get userid from access token
         $creatorid = $accessToken->data->userid;
 
+        // Build a query
         $query = "INSERT INTO " . self::TABLE_NAME .
             " VALUES (null, :creatorid, :groupid, :name, :startdate, :enddate, :recurring, :saved, :state, :comment)";
 
+        // Connect to database and prepare the query
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
@@ -71,43 +85,51 @@ class TaskController
             return true;
         } else {
             http_response_code(500);
-            echo json_encode(array("errormessage" => "Failed to create a task."));
+            echo new ApiError('database_query_failed');
             return false;
         }
     }
 
     static function getTasks($groupid) {
         header('Content-Type: application/json');
-        $errorMsg = "";
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false, $errorMsg);
 
-        if (!$isAuthorized) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $errorMsg"));
+        // Check permissions
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false);
+        if ($isAuthorized === false) {
             return false;
         }
 
+        // Build a query
         $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE groupid = :groupid";
 
+        // Connect to database and prepare the query
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
-        $statement->execute();
-        $tasks = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        if ($tasks) {
-            http_response_code(200);
-            echo json_encode($tasks);
-            return true;
+        // Execute the query
+        if ($statement->execute()) {
+            // Fetch all tasks
+            $tasks = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($tasks) {
+                http_response_code(200);
+                echo json_encode($tasks);
+                return true;
+            } else {
+                http_response_code(404);
+                echo new ApiError('group_has_no_tasks');
+                return false;
+            }
         } else {
-            http_response_code(404);
-            echo json_encode(array("errormessage" => "This group does not have any tasks."));
+            http_response_code(500);
+            echo new ApiError('database_query_failed');
             return false;
         }
     }
 
-    private static function testRequirements(&$data, &$outFailureMsg=null) {
+    private static function testRequirements(&$data) {
         /*
          * Test if data meets requirements.
          * The data is passed as a reference and may be modified in the following way:
@@ -119,24 +141,29 @@ class TaskController
          * - The value of 'name' must be at least MIN_NAME_LEN characters long
          * - The value of 'name' must be at most MAX_NAME_LEN characters long
          *
-         * Optionally, a reference to a variable can be passed as outFailureMsg,
-         * which will be set to an appropriate failure message in case the requirements
-         * are not met.
+         * Returns null if all requirements are met,
+         * otherwise returns an ApiError object.
          */
 
         if (array_key_exists("name", $data)) {
             $data["name"] = trim($data["name"]);
-            if (!JsonValidator::validateStringLength(
-                $data["name"],
+
+            $lenDifference = JsonValidator::checkStringLength($data["name"],
                 self::MIN_NAME_LEN,
-                self::MAX_NAME_LEN,
-                "name",
-                $outFailureMsg
-            )) {
-                return false;
+                self::MAX_NAME_LEN);
+
+            if ($lenDifference !== 0) {
+                $details = null;
+
+                if ($lenDifference < 0) {
+                    $details = "The value of 'name' is too short.";
+                } else if ($lenDifference > 0) {
+                    $details = "The value of 'name' is too long.";
+                }
+                return new ApiError("invalid_task_name", $details);
             }
         }
 
-        return true;
+        return null;
     }
 }
