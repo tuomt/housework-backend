@@ -8,9 +8,9 @@ use Firebase\JWT\SignatureInvalidException;
 class TokenManager
 {
     const ALGORITHM = 'HS256';
-    const AT_EXPIRATION = 9000;
+    const AT_EXPIRATION = 900;
     const RT_EXPIRATION = 15778463;
-    const GT_EXPIRATION = 9000;
+    const GT_EXPIRATION = 900;
 
     static function createAccessToken($userId) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
