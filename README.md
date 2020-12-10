@@ -40,8 +40,6 @@ Create a unique string for each key. Don't use same string more than once.
 ```
 sudo chown -R www-data:www-data housework-backend
 sudo chmod -R 774 housework-backend
-sudo chown -R root:root housework-backend/priv/secrets
-sudo chmod -R 700 housework-backend/priv/secrets
 ```
 #### 6. Install dependencies
 ```
