@@ -1,6 +1,5 @@
 <?php
 
-//require __DIR__ . "/../config/JsonValidator.php";
 require __DIR__ . '/../config/ApiError.php';
 
 class UserController
@@ -35,8 +34,6 @@ class UserController
 
     static function authenticateUser()
     {
-        header('Content-Type: application/json');
-
         // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -73,9 +70,9 @@ class UserController
                     // Send the tokens to the client
                     http_response_code(200);
                     echo json_encode(array(
-                        "id" => $user["id"],
-                        "accesstoken" => $accessToken,
-                        "refreshtoken" => $refreshToken
+                        "user_id" => $user["id"],
+                        "access_token" => $accessToken,
+                        "refresh_token" => $refreshToken
                     ));
                     return true;
                 } else {
@@ -99,21 +96,19 @@ class UserController
         }
     }
 
-    static function fetchAllGroups($userid, $fetchStyle = PDO::FETCH_ASSOC) {
-        $query = "SELECT * FROM " . GroupMemberController::TABLE_NAME . " WHERE userid = :userid";
+    static function fetchAllGroups($userId, $fetchStyle = PDO::FETCH_ASSOC) {
+        $query = "SELECT * FROM " . GroupMemberController::TABLE_NAME . " WHERE user_id = :user_id";
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $statement->bindParam(':user_id', $userId, PDO::PARAM_INT);
         // Execute the statement and fetch user information
         $statement->execute();
         return $statement->fetchAll($fetchStyle);
     }
 
     static function getNewAccessToken($id) {
-        header('Content-Type: application/json');
-
         // Get refresh token
         $refreshToken = TokenManager::getDecodedRefreshToken();
 
@@ -123,7 +118,7 @@ class UserController
             http_response_code(401);
             echo $refreshToken;
             return false;
-        } else if ($refreshToken->data->userid != $id) {
+        } else if ($refreshToken->data->user_id != $id) {
             // Permission denied
             http_response_code(403);
             echo new ApiError('permission_denied');
@@ -134,12 +129,11 @@ class UserController
         $accessToken = TokenManager::createAccessToken($id);
         // Send the token to the client
         http_response_code(200);
-        echo json_encode(array("accesstoken" => $accessToken));
+        echo json_encode(array("access_token" => $accessToken));
         return true;
     }
 
     static function getUser($id) {
-        header('Content-Type: application/json');
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -149,7 +143,7 @@ class UserController
             http_response_code(401);
             echo $accessToken;
             return false;
-        } else if ($accessToken->data->userid != $id) {
+        } else if ($accessToken->data->user_id != $id) {
             // Permission denied
             http_response_code(403);
             echo new ApiError('permission_denied');
@@ -191,8 +185,6 @@ class UserController
     }
 
     static function createUser() {
-        header('Content-Type: application/json');
-
         // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -244,8 +236,6 @@ class UserController
     }
 
     static function modifyUserPartially($id) {
-        header('Content-Type: application/json');
-
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -255,7 +245,7 @@ class UserController
             http_response_code(401);
             echo $accessToken;
             return false;
-        } else if ($accessToken->data->userid != $id) {
+        } else if ($accessToken->data->user_id != $id) {
             // Permission denied
             http_response_code(403);
             echo new ApiError('permission_denied');
@@ -344,8 +334,6 @@ class UserController
     }
 
     static function deleteUser($id) {
-        header('Content-Type: application/json');
-
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -355,7 +343,7 @@ class UserController
             http_response_code(401);
             echo $accessToken;
             return false;
-        } else if ($accessToken->data->userid != $id) {
+        } else if ($accessToken->data->user_id != $id) {
             // Permission denied
             http_response_code(403);
             echo new ApiError('permission_denied');

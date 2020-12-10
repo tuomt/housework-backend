@@ -7,8 +7,6 @@ class GroupMemberController
 
     static function authenticateGroupMember()
     {
-        header('Content-Type: application/json');
-
         // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -23,17 +21,17 @@ class GroupMemberController
         }
 
         // Check if group exists and the password is correct
-        $group = GroupController::fetchGroup($data["name"]);
+        $group = GroupController::fetchGroup($data["group_name"]);
 
         if ($group) {
             // Verify password
-            if (password_verify($data["password"], $group["password"]))
+            if (password_verify($data["group_password"], $group["password"]))
             {
                 $groupToken = TokenManager::createGroupToken($group["id"]);
                 http_response_code(200);
                 echo json_encode(array(
-                    "groupid" => $group["id"],
-                    "grouptoken" => $groupToken
+                    "group_id" => $group["id"],
+                    "group_token" => $groupToken
                 ));
                 return true;
             } else {
@@ -50,7 +48,7 @@ class GroupMemberController
         }
     }
 
-    static function authorizeGroupMember($groupid, $requireMaster, $authorizedUsers=null, $accessToken=null) {
+    static function authorizeGroupMember($groupId, $requireMaster, $authorizedUsers=null, $accessToken=null) {
         /*
          * authorizedUsers must be an array of integers.
          */
@@ -69,9 +67,9 @@ class GroupMemberController
         }
 
         // Get user id from the access token
-        $userid = $accessToken->data->userid;
+        $userId = $accessToken->data->user_id;
         // Fetch group member information from database
-        $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
+        $groupMember = self::fetchGroupMember($groupId, $userId, PDO::FETCH_OBJ);
 
         // Check if the database query failed
         if ($groupMember instanceOf ApiError) {
@@ -82,7 +80,7 @@ class GroupMemberController
 
         // Check if the user has required rights
         if ($groupMember) {
-            if ($authorizedUsers !== null && in_array($userid, $authorizedUsers, true)) {
+            if ($authorizedUsers !== null && in_array($userId, $authorizedUsers, true)) {
                 return true;
             }
 
@@ -102,14 +100,14 @@ class GroupMemberController
         }
     }
 
-    static function authorizeViaGroupToken($token, $groupid) {
+    static function authorizeViaGroupToken($token, $groupId) {
         /*
          * Authorize a group member via group token.
-         * Checks if the groupid included in the payload of the token matches the groupid argument.
+         * Checks if the group_id included in the payload of the token matches the groupId argument.
          *
          * Returns true if the authorization is successful.
-         * Returns false if the token is invalid or if the groupid in the token does not match
-         * the groupid argument. An error is sent to the client if the authorization fails.
+         * Returns false if the token is invalid or if the group_id in the token does not match
+         * the groupId argument. An error is sent to the client if the authorization fails.
          */
         $token = TokenManager::decodeGroupToken($token);
 
@@ -117,7 +115,7 @@ class GroupMemberController
             http_response_code(401);
             echo $token;
             return false;
-        } else if ($token->data->groupid != $groupid) {
+        } else if ($token->data->group_id != $groupId) {
             http_response_code(401);
             $details = 'The group token was not valid for this group.';
             echo new ApiError('invalid_group_token', $details);
@@ -127,16 +125,16 @@ class GroupMemberController
         }
     }
 
-    private static function fetchGroupMember($groupid, $userid, $fetchStyle=PDO::FETCH_ASSOC) {
-        // Fetch user's groupid and master value from database
-        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE groupid = :groupid and userid = :userid";
+    private static function fetchGroupMember($groupId, $userId, $fetchStyle=PDO::FETCH_ASSOC) {
+        // Fetch user's group_id and master value from database
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE group_id = :group_id and user_id = :user_id";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
-        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindParam(':group_id', $groupId, PDO::PARAM_INT);
 
         // Execute the statement and fetch user information
         if ($statement->execute()) {
@@ -147,24 +145,22 @@ class GroupMemberController
         }
     }
 
-    static function getMembers($groupid) {
-        header('Content-Type: application/json');
-
+    static function getMembers($groupId) {
         // Check if the user has permission to access this resource
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false);
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupId, false);
         if ($isAuthorized === false) {
             return false;
         }
 
         $query = "SELECT u.id, u.name, m.master" .
                 " FROM " . self::TABLE_NAME . " as m, " . UserController::TABLE_NAME . " as u" .
-                " WHERE m.groupid = :groupid AND m.userid = u.id";
+                " WHERE m.group_id = :group_id AND m.user_id = u.id";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindParam(':group_id', $groupId, PDO::PARAM_INT);
 
         // Execute the statement and fetch all members
         if ($statement->execute()) {
@@ -189,9 +185,7 @@ class GroupMemberController
         }
     }
 
-    static function createMember($groupid) {
-        header('Content-Type: application/json');
-
+    static function createMember($groupId) {
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -207,7 +201,7 @@ class GroupMemberController
         $data = json_decode(file_get_contents("php://input"), true);
 
         // Only group token is accepted as input
-        $resources = array("grouptoken" => JsonValidator::T_STRING);
+        $resources = array("group_token" => JsonValidator::T_STRING);
 
         // Check if data is valid
         $dataError = JsonValidator::validateData($data, $resources, true);
@@ -218,16 +212,16 @@ class GroupMemberController
         }
 
         // Check if group-token is valid
-        $isAuthorized = self::authorizeViaGroupToken($data["grouptoken"], $groupid);
+        $isAuthorized = self::authorizeViaGroupToken($data["group_token"], $groupId);
         if ($isAuthorized === false) {
             return false;
         }
 
         // Get user id from the access token
-        $userid = $accessToken->data->userid;
+        $userId = $accessToken->data->user_id;
 
         // Fetch group member information
-        $groupMember = self::fetchGroupMember($groupid, $userid, PDO::FETCH_OBJ);
+        $groupMember = self::fetchGroupMember($groupId, $userId, PDO::FETCH_OBJ);
 
         // Check if the database query failed
         if ($groupMember instanceOf ApiError) {
@@ -242,28 +236,28 @@ class GroupMemberController
         }
 
         // Grant master privileges if the user has created the group
-        $group = GroupController::fetchGroupById($groupid, PDO::FETCH_OBJ);
-        if ($userid == $group->creatorid) {
+        $group = GroupController::fetchGroupById($groupId, PDO::FETCH_OBJ);
+        if ($userId == $group->creator_id) {
             $master = 1;
         } else {
             $master = 0;
         }
 
-        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (:groupid, :userid, :master)";
+        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (:group_id, :user_id, :master)";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
         // Bind params
-        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
-        $statement->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $statement->bindParam(':group_id', $groupId, PDO::PARAM_INT);
+        $statement->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $statement->bindParam(':master', $master, PDO::PARAM_INT);
 
         if ($statement->execute()) {
             http_response_code(201);
-            echo json_encode(array("groupid" => (int)$groupid,
-                "userid" => $userid,
+            echo json_encode(array("group_id" => (int)$groupId,
+                "user_id" => $userId,
                 "master" => $master));
             return true;
         } else {
@@ -274,34 +268,21 @@ class GroupMemberController
         }
     }
 
-    static function deleteMember($groupid, $userid) {
-        header('Content-Type: application/json');
-
-        /*
-        // Check if access-token is valid
-        $accessTokenError = "";
-        $accessToken = TokenManager::getDecodedAccessToken($accessTokenError);
-        if (!$accessToken) {
-            http_response_code(403);
-            echo json_encode(array("errormessage" => "Permission denied. $accessTokenError"));
-            return false;
-        }
-        */
-
+    static function deleteMember($groupId, $userId) {
         // Check if the user has permission to access this resource
-        $isAuthorized = self::authorizeGroupMember($groupid, true, array((int)$userid));
+        $isAuthorized = self::authorizeGroupMember($groupId, true, array((int)$userId));
         if ($isAuthorized === false) {
             return false;
         }
 
-        $query = "DELETE FROM " . self::TABLE_NAME . " WHERE groupid = :groupid AND userid = :userid";
+        $query = "DELETE FROM " . self::TABLE_NAME . " WHERE group_id = :group_id AND user_id = :user_id";
 
         // Connect to database
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindValue(':groupid', $groupid, PDO::PARAM_INT);
-        $statement->bindValue(':userid', $userid, PDO::PARAM_INT);
+        $statement->bindValue(':group_id', $groupId, PDO::PARAM_INT);
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
 
         // Execute the statement and send a response
         if ($statement->execute()) {

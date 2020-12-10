@@ -9,16 +9,15 @@ class TaskController
     // All resources
     const RESOURCES = array(
         'name' => JsonValidator::T_STRING,
-        'startdate' => JsonValidator::T_STRING,
-        'enddate' => JsonValidator::T_STRING_NULLABLE,
+        'start_date' => JsonValidator::T_STRING,
+        'end_date' => JsonValidator::T_STRING_NULLABLE,
         'recurring' => JsonValidator::T_INT_NULLABLE,
         'saved' => JsonValidator::T_INT,
         'state' => JsonValidator::T_INT,
         'comment' => JsonValidator::T_STRING_NULLABLE
     );
 
-    static function createTask($groupid) {
-        header('Content-Type: application/json');
+    static function createTask($groupId) {
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -31,7 +30,7 @@ class TaskController
         }
 
         // Check permissions
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, true, null, $accessToken);
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupId, true, null, $accessToken);
         if ($isAuthorized === false) {
             return false;
         }
@@ -47,22 +46,22 @@ class TaskController
             return false;
         }
 
-        // Get userid from access token
-        $creatorid = $accessToken->data->userid;
+        // Get user_id from access token
+        $creatorId = $accessToken->data->user_id;
 
         // Build a query
         $query = "INSERT INTO " . self::TABLE_NAME .
-            " VALUES (null, :creatorid, :groupid, :name, :startdate, :enddate, :recurring, :saved, :state, :comment)";
+            " VALUES (null, :creator_id, :group_id, :name, :start_date, :end_date, :recurring, :saved, :state, :comment)";
 
         // Connect to database and prepare the query
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindParam(':creatorid', $creatorid, PDO::PARAM_INT);
-        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindParam(':creator_id', $creatorId, PDO::PARAM_INT);
+        $statement->bindParam(':group_id', $groupId, PDO::PARAM_INT);
         $statement->bindParam(':name', $data["name"], PDO::PARAM_STR);
-        $statement->bindParam(':startdate', $data["startdate"], PDO::PARAM_STR);
-        $statement->bindParam(':enddate', $data["enddate"], PDO::PARAM_STR);
+        $statement->bindParam(':start_date', $data["start_date"], PDO::PARAM_STR);
+        $statement->bindParam(':end_date', $data["end_date"], PDO::PARAM_STR);
         $statement->bindParam(':recurring', $data["recurring"], PDO::PARAM_INT);
         $statement->bindParam(':saved', $data["saved"], PDO::PARAM_INT);
         $statement->bindParam(':state', $data["state"], PDO::PARAM_INT);
@@ -72,11 +71,11 @@ class TaskController
             http_response_code(201);
             echo json_encode(array(
                 'id' => (int)$conn->lastInsertId(),
-                'creatorid' => (int)$creatorid,
-                'groupid' => (int)$groupid,
+                'creator_id' => (int)$creatorId,
+                'group_id' => (int)$groupId,
                 'name' => $data["name"],
-                'starddate' => $data["startdate"],
-                'enddate' => $data["enddate"],
+                'start_date' => $data["start_date"],
+                'end_date' => $data["end_date"],
                 'recurring' => $data["recurring"],
                 'saved' => $data["saved"],
                 'state' => $data["state"],
@@ -90,23 +89,21 @@ class TaskController
         }
     }
 
-    static function getTasks($groupid) {
-        header('Content-Type: application/json');
-
+    static function getTasks($groupId) {
         // Check permissions
-        $isAuthorized = GroupMemberController::authorizeGroupMember($groupid, false);
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupId, false);
         if ($isAuthorized === false) {
             return false;
         }
 
         // Build a query
-        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE groupid = :groupid";
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE group_id = :group_id";
 
         // Connect to database and prepare the query
         $db = new Database();
         $conn = $db->getConnection();
         $statement = $conn->prepare($query);
-        $statement->bindParam(':groupid', $groupid, PDO::PARAM_INT);
+        $statement->bindParam(':group_id', $groupId, PDO::PARAM_INT);
 
         // Execute the query
         if ($statement->execute()) {

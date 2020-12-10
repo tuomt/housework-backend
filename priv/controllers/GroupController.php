@@ -16,7 +16,10 @@ class GroupController
         'password' => JsonValidator::T_STRING
     );
 
-    const AUTHENTICATION_RESOURCES = self::RESOURCES;
+    const AUTHENTICATION_RESOURCES = array(
+        'group_name' => JsonValidator::T_STRING,
+        'group_password' => JsonValidator::T_STRING
+    );
 
     static function fetchGroupById($id, $fetchStyle=PDO::FETCH_ASSOC) {
         $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = :id";
@@ -47,8 +50,6 @@ class GroupController
     }
 
     static function getGroup($id) {
-        header('Content-Type: application/json');
-
         // Check if the user has permission to access this resource
         $isAuthorized = GroupMemberController::authorizeGroupMember($id, false);
         if ($isAuthorized === false) {
@@ -56,7 +57,7 @@ class GroupController
         }
 
         // Build the query
-        $query = "SELECT id, creatorid, name FROM " . self::TABLE_NAME .
+        $query = "SELECT id, creator_id, name FROM " . self::TABLE_NAME .
                  " WHERE id = :id";
 
         // Connect to database
@@ -89,8 +90,6 @@ class GroupController
     }
 
     static function createGroup() {
-        header('Content-Type: application/json');
-
         // Get access token
         $accessToken = TokenManager::getDecodedAccessToken();
 
@@ -103,7 +102,7 @@ class GroupController
         }
 
         // Get user id from the access token
-        $userid = $accessToken->data->userid;
+        $userId = $accessToken->data->user_id;
 
         // Get input data from the request
         $data = json_decode(file_get_contents("php://input"), true);
@@ -125,7 +124,7 @@ class GroupController
         }
 
         // Build the query
-        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (null, :creatorid, :name, :password)";
+        $query = "INSERT INTO " . self::TABLE_NAME . " VALUES (null, :creator_id, :name, :password)";
 
         // Connect to database
         $db = new Database();
@@ -136,14 +135,14 @@ class GroupController
         // Bind params
         $statement->bindParam(':name', $data["name"], PDO::PARAM_STR);
         $statement->bindParam(':password', $passwordHash, PDO::PARAM_STR);
-        $statement->bindParam(':creatorid', $userid, PDO::PARAM_INT);
+        $statement->bindParam(':creator_id', $userId, PDO::PARAM_INT);
 
         // Send a response depending on the outcome of the query
         if ($statement->execute()) {
             http_response_code(201);
             echo json_encode(array(
                 "id" => (int)$conn->lastInsertId(),
-                "creatorid" => (int)$userid,
+                "creator_id" => (int)$userId,
                 "name" => $data["name"]
             ));
             return true;
@@ -156,8 +155,6 @@ class GroupController
     }
 
     static function modifyGroupPartially($id) {
-        header('Content-Type: application/json');
-
         // Check if the user has permission to access this resource
         $isAuthorized = GroupMemberController::authorizeGroupMember($id, true);
         if ($isAuthorized === false) {
@@ -246,8 +243,6 @@ class GroupController
     }
 
     static function deleteGroup($id) {
-        header('Content-Type: application/json');
-
         // Check if the user has permission to access this resource
         $isAuthorized = GroupMemberController::authorizeGroupMember($id, true);
         if ($isAuthorized === false) {

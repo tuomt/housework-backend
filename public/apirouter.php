@@ -4,6 +4,7 @@ set_exception_handler("ExceptionHandler::handle");
 set_error_handler("ExceptionHandler::handleError");
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+header('Content-Type: application/json');
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../priv/config/Database.php';
 require __DIR__ . '/../priv/config/JsonValidator.php';
@@ -34,18 +35,17 @@ $router->map('PATCH', '/api/groups/[i:id]', 'GroupController::modifyGroupPartial
 $router->map('DELETE', '/api/groups/[i:id]', 'GroupController::deleteGroup');
 
 // Requests related to group members
-$router->map('POST', '/api/groups/[i:groupid]/members', 'GroupMemberController::createMember');
-$router->map('GET', '/api/groups/[i:groupid]/members', 'GroupMemberController::getMembers');
-$router->map('DELETE', '/api/groups/[i:groupid]/members/[i:userid]', 'GroupMemberController::deleteMember');
+$router->map('POST', '/api/groups/[i:groupId]/members', 'GroupMemberController::createMember');
+$router->map('GET', '/api/groups/[i:groupId]/members', 'GroupMemberController::getMembers');
+$router->map('DELETE', '/api/groups/[i:groupId]/members/[i:userId]', 'GroupMemberController::deleteMember');
 
 // Routing for requests related to tasks
-$router->map('POST', '/api/groups/[i:groupid]/tasks', 'TaskController::createTask');
-$router->map('GET', '/api/groups/[i:groupid]/tasks', 'TaskController::getTasks');
+$router->map('POST', '/api/groups/[i:groupId]/tasks', 'TaskController::createTask');
+$router->map('GET', '/api/groups/[i:groupId]/tasks', 'TaskController::getTasks');
 
 $match = $router->match();
 
 if ($match === false) {
-    header('Content-Type: application/json');
     http_response_code(404);
     $details = 'Page does not exist or the HTTP-method is not supported by this resource.';
     echo new ApiError('page_not_found', $details);

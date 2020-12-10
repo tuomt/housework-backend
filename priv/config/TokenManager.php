@@ -12,24 +12,24 @@ class TokenManager
     const RT_EXPIRATION = 15778463;
     const GT_EXPIRATION = 9000;
 
-    static function createAccessToken($userid) {
+    static function createAccessToken($userId) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->accessTokenKey;
-        $data = array("userid" => $userid);
+        $data = array("user_id" => $userId);
         return self::encodeToken($data, self::AT_EXPIRATION, $privateKey);
     }
 
-    static function createRefreshToken($userid) {
+    static function createRefreshToken($userId) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->refreshTokenKey;
-        $data = array("userid" => $userid);
+        $data = array("user_id" => $userId);
         return self::encodeToken($data, self::RT_EXPIRATION, $privateKey);
     }
 
-    static function createGroupToken($groupid) {
+    static function createGroupToken($groupId) {
         $secrets = json_decode(file_get_contents(__DIR__ . '/../secrets/jwt_secrets.json'));
         $privateKey = $secrets->groupTokenKey;
-        $data = array("groupid" => $groupid);
+        $data = array("group_id" => $groupId);
         return self::encodeToken($data, self::GT_EXPIRATION, $privateKey);
     }
 
