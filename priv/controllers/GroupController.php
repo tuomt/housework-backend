@@ -4,7 +4,7 @@
 
 class GroupController
 {
-    const TABLE_NAME = "groups";
+    const TABLE_NAME = "homegroups";
     const MIN_NAME_LEN = 3; // Minimum length for a group name
     const MAX_NAME_LEN = 21; // Maximum length for a group name (inclusive)
     const MIN_PASSWORD_LEN = 5; // Length of the group's password
