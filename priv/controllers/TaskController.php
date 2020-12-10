@@ -13,8 +13,8 @@ class TaskController
         'end_date' => JsonValidator::T_STRING_NULLABLE,
         'recurring' => JsonValidator::T_INT_NULLABLE,
         'saved' => JsonValidator::T_INT,
-        'state' => JsonValidator::T_INT,
-        'comment' => JsonValidator::T_STRING_NULLABLE
+        'progress' => JsonValidator::T_INT,
+        'description' => JsonValidator::T_STRING_NULLABLE
     );
 
     static function createTask($groupId) {
@@ -51,7 +51,7 @@ class TaskController
 
         // Build a query
         $query = "INSERT INTO " . self::TABLE_NAME .
-            " VALUES (null, :creator_id, :group_id, :name, :start_date, :end_date, :recurring, :saved, :state, :comment)";
+            " VALUES (null, :creator_id, :group_id, :name, :start_date, :end_date, :recurring, :saved, :progress, :description)";
 
         // Connect to database and prepare the query
         $db = new Database();
@@ -64,8 +64,8 @@ class TaskController
         $statement->bindParam(':end_date', $data["end_date"], PDO::PARAM_STR);
         $statement->bindParam(':recurring', $data["recurring"], PDO::PARAM_INT);
         $statement->bindParam(':saved', $data["saved"], PDO::PARAM_INT);
-        $statement->bindParam(':state', $data["state"], PDO::PARAM_INT);
-        $statement->bindParam(':comment', $data["comment"], PDO::PARAM_STR);
+        $statement->bindParam(':progress', $data["progress"], PDO::PARAM_INT);
+        $statement->bindParam(':description', $data["description"], PDO::PARAM_STR);
 
         if ($statement->execute()) {
             http_response_code(201);
@@ -78,8 +78,8 @@ class TaskController
                 'end_date' => $data["end_date"],
                 'recurring' => $data["recurring"],
                 'saved' => $data["saved"],
-                'state' => $data["state"],
-                'comment' => $data["comment"]
+                'progress' => $data["progress"],
+                'description' => $data["description"]
             ));
             return true;
         } else {
