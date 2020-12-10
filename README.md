@@ -1,17 +1,17 @@
 # housework-backend
 Backend for housework app.
 
-## How to install and set up the API for an Apache web server (LAMP).
+## How to install and set up the API for an Apache web server (LAMP)
 The user installing is expected to be a member of www-data group.
 
-#### 1. Clone the repository to your server. 
+#### 1. Clone the repository to your server
 It is recommended to choose a directory under the web root.
 In this example we will clone the repo to "/var/www"
 ```
 cd /var/www
 git clone https://github.com/tuomt/housework-backend
 ```
-#### 2. Create a directory for secrets:
+#### 2. Create a directory for secrets
 ```
 sudo mkdir housework-backend/priv/secrets
 ```
