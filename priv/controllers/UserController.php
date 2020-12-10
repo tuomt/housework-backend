@@ -1,7 +1,5 @@
 <?php
 
-require __DIR__ . '/../config/ApiError.php';
-
 class UserController
 {
     const TABLE_NAME = "users";

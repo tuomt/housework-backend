@@ -1,6 +1,4 @@
 <?php
-//require __DIR__ . '/../config/Database.php';
-//require __DIR__ . "/../config/JsonValidator.php";
 
 class GroupController
 {
