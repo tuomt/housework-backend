@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/../priv/config/ApiError.php';
 require __DIR__ . '/../priv/config/ExceptionHandler.php';
 set_exception_handler("ExceptionHandler::handle");
 set_error_handler("ExceptionHandler::handleError");
