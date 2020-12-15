@@ -165,6 +165,12 @@ class UserController
 
             // Send a response
             if ($user) {
+                $groups = self::fetchAllGroups($id);
+                if ($groups) {
+                    $user["groups"] = $groups;
+                } else {
+                    $user["groups"] = null;
+                }
                 http_response_code(200);
                 echo json_encode($user);
                 return true;
