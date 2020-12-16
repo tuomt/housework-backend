@@ -70,6 +70,11 @@
     "details": null
   },
   {
+    "type": "task_not_found",
+    "message": "Task not found.",
+    "details": null
+  },
+  {
     "type": "bearer_token_not_provided",
     "message": "Bearer token was not provided.",
     "details": null

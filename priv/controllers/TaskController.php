@@ -89,6 +89,48 @@ class TaskController
         }
     }
 
+    static function getTask($groupId, $taskId) {
+        // Check permissions
+        $isAuthorized = GroupMemberController::authorizeGroupMember($groupId, false);
+        if ($isAuthorized === false) {
+            return false;
+        }
+
+        // Build a query
+        $query = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = :id";
+
+        // Connect to database and prepare the query
+        $db = new Database();
+        $conn = $db->getConnection();
+        $statement = $conn->prepare($query);
+        $statement->bindParam(':id', $taskId, PDO::PARAM_INT);
+
+        // Execute the query
+        if ($statement->execute()) {
+            // Fetch the task
+            $task = $statement->fetch(PDO::FETCH_ASSOC);
+            if ($task) {
+                $doers = TaskDoerController::fetchAllDoers($task["id"]);
+                if ($doers) {
+                    $task["doers"] = $doers;
+                } else {
+                    $task["doers"] = null;
+                }
+                http_response_code(200);
+                echo json_encode($task);
+                return true;
+            } else {
+                http_response_code(404);
+                echo new ApiError('task_not_found');
+                return false;
+            }
+        } else {
+            http_response_code(500);
+            echo new ApiError('database_query_failed');
+            return false;
+        }
+    }
+
     static function getTasks($groupId) {
         // Check permissions
         $isAuthorized = GroupMemberController::authorizeGroupMember($groupId, false);
