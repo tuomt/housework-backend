@@ -14,6 +14,7 @@ require __DIR__ . '/../priv/controllers/UserController.php';
 require __DIR__ . '/../priv/controllers/GroupController.php';
 require __DIR__ . '/../priv/controllers/GroupMemberController.php';
 require __DIR__ . '/../priv/controllers/TaskController.php';
+require __DIR__ . '/../priv/controllers/TaskDoerController.php';
 
 $router = new AltoRouter();
 

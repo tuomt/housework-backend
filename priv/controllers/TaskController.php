@@ -108,9 +108,21 @@ class TaskController
         // Execute the query
         if ($statement->execute()) {
             // Fetch all tasks
-            $tasks = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $tasks = array();
+            $task = $statement->fetch(PDO::FETCH_ASSOC);
 
-            if ($tasks) {
+            do {
+                $doers = TaskDoerController::fetchAllDoers($task["id"]);
+                if ($doers) {
+                    $task["doers"] = $doers;
+                } else {
+                    $task["doers"] = null;
+                }
+                array_push($tasks, $task);
+            }
+            while ($task = $statement->fetch(PDO::FETCH_ASSOC));
+
+            if (!empty($tasks)) {
                 http_response_code(200);
                 echo json_encode($tasks);
                 return true;
