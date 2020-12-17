@@ -153,16 +153,18 @@ class TaskController
             $tasks = array();
             $task = $statement->fetch(PDO::FETCH_ASSOC);
 
-            do {
-                $doers = TaskDoerController::fetchAllDoers($task["id"]);
-                if ($doers) {
-                    $task["doers"] = $doers;
-                } else {
-                    $task["doers"] = null;
+            if ($task) {
+                do {
+                    $doers = TaskDoerController::fetchAllDoers($task["id"]);
+                    if ($doers) {
+                        $task["doers"] = $doers;
+                    } else {
+                        $task["doers"] = null;
+                    }
+                    array_push($tasks, $task);
                 }
-                array_push($tasks, $task);
+                while ($task = $statement->fetch(PDO::FETCH_ASSOC));
             }
-            while ($task = $statement->fetch(PDO::FETCH_ASSOC));
 
             if (!empty($tasks)) {
                 http_response_code(200);
