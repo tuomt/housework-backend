@@ -1,5 +1,5 @@
 # housework-backend
-Backend for housework app.
+REST API / backend for housework app.
 
 ## How to install and set up the API for an Apache web server (LAMP)
 The user installing is expected to be a member of www-data group.
